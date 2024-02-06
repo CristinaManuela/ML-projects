@@ -130,7 +130,9 @@ Travel_Controls             330821
 Differential_Type           341134
 Steering_Controls           341176
 dtype: int64
+
 df.columns
+
 Index(['SalesID', 'SalePrice', 'MachineID', 'ModelID', 'datasource',
        'auctioneerID', 'YearMade', 'MachineHoursCurrentMeter', 'UsageBand',
        'saledate', 'fiModelDesc', 'fiBaseModel', 'fiSecondaryDesc',
@@ -145,6 +147,1569 @@ Index(['SalesID', 'SalePrice', 'MachineID', 'ModelID', 'datasource',
        'Pattern_Changer', 'Grouser_Type', 'Backhoe_Mounting', 'Blade_Type',
        'Travel_Controls', 'Differential_Type', 'Steering_Controls'],
       dtype='object')
+
 fig, ax = plt.subplots()
 ax.scatter(df["saledate"][:1000], df["SalePrice"][:1000])
 <matplotlib.collections.PathCollection at 0x1a277ca1d0>
+
+df.saledate[:1000]
+
+0      11/16/2006 0:00
+1       3/26/2004 0:00
+2       2/26/2004 0:00
+3       5/19/2011 0:00
+4       7/23/2009 0:00
+            ...       
+995     7/16/2009 0:00
+996     6/14/2007 0:00
+997     9/22/2005 0:00
+998     7/28/2005 0:00
+999     6/16/2011 0:00
+Name: saledate, Length: 1000, dtype: object
+
+df.saledate.dtype
+
+dtype('O')
+
+df.SalePrice.plot.hist()
+<matplotlib.axes._subplots.AxesSubplot at 0x1a27dc7e50>
+
+# Import data again but this time parse dates
+df = pd.read_csv("data/bluebook-for-bulldozers/TrainAndValid.csv",
+                 low_memory=False,
+                 parse_dates=["saledate"])
+
+df.saledate.dtype
+
+dtype('<M8[ns]')
+df.saledate[:1000]
+0     2006-11-16
+1     2004-03-26
+2     2004-02-26
+3     2011-05-19
+4     2009-07-23
+         ...    
+995   2009-07-16
+996   2007-06-14
+997   2005-09-22
+998   2005-07-28
+999   2011-06-16
+Name: saledate, Length: 1000, dtype: datetime64[ns]
+
+fig, ax = plt.subplots()
+ax.scatter(df["saledate"][:1000], df["SalePrice"][:1000])
+<matplotlib.collections.PathCollection at 0x1a271fc590>
+
+df.head()
+
+SalesID	SalePrice	MachineID	ModelID	datasource	auctioneerID	YearMade	MachineHoursCurrentMeter	UsageBand	saledate	...	Undercarriage_Pad_Width	Stick_Length	Thumb	Pattern_Changer	Grouser_Type	Backhoe_Mounting	Blade_Type	Travel_Controls	Differential_Type	Steering_Controls
+0	1139246	66000.0	999089	3157	121	3.0	2004	68.0	Low	2006-11-16	...	NaN	NaN	NaN	NaN	NaN	NaN	NaN	NaN	Standard	Conventional
+1	1139248	57000.0	117657	77	121	3.0	1996	4640.0	Low	2004-03-26	...	NaN	NaN	NaN	NaN	NaN	NaN	NaN	NaN	Standard	Conventional
+2	1139249	10000.0	434808	7009	121	3.0	2001	2838.0	High	2004-02-26	...	NaN	NaN	NaN	NaN	NaN	NaN	NaN	NaN	NaN	NaN
+3	1139251	38500.0	1026470	332	121	3.0	2001	3486.0	High	2011-05-19	...	NaN	NaN	NaN	NaN	NaN	NaN	NaN	NaN	NaN	NaN
+4	1139253	11000.0	1057373	17311	121	3.0	2007	722.0	Medium	2009-07-23	...	NaN	NaN	NaN	NaN	NaN	NaN	NaN	NaN	NaN	NaN
+5 rows × 53 columns
+
+df.head().T
+
+0	1	2	3	4
+SalesID	1139246	1139248	1139249	1139251	1139253
+SalePrice	66000	57000	10000	38500	11000
+MachineID	999089	117657	434808	1026470	1057373
+ModelID	3157	77	7009	332	17311
+datasource	121	121	121	121	121
+auctioneerID	3	3	3	3	3
+YearMade	2004	1996	2001	2001	2007
+MachineHoursCurrentMeter	68	4640	2838	3486	722
+UsageBand	Low	Low	High	High	Medium
+saledate	2006-11-16 00:00:00	2004-03-26 00:00:00	2004-02-26 00:00:00	2011-05-19 00:00:00	2009-07-23 00:00:00
+fiModelDesc	521D	950FII	226	PC120-6E	S175
+fiBaseModel	521	950	226	PC120	S175
+fiSecondaryDesc	D	F	NaN	NaN	NaN
+fiModelSeries	NaN	II	NaN	-6E	NaN
+fiModelDescriptor	NaN	NaN	NaN	NaN	NaN
+ProductSize	NaN	Medium	NaN	Small	NaN
+fiProductClassDesc	Wheel Loader - 110.0 to 120.0 Horsepower	Wheel Loader - 150.0 to 175.0 Horsepower	Skid Steer Loader - 1351.0 to 1601.0 Lb Operat...	Hydraulic Excavator, Track - 12.0 to 14.0 Metr...	Skid Steer Loader - 1601.0 to 1751.0 Lb Operat...
+state	Alabama	North Carolina	New York	Texas	New York
+ProductGroup	WL	WL	SSL	TEX	SSL
+ProductGroupDesc	Wheel Loader	Wheel Loader	Skid Steer Loaders	Track Excavators	Skid Steer Loaders
+Drive_System	NaN	NaN	NaN	NaN	NaN
+Enclosure	EROPS w AC	EROPS w AC	OROPS	EROPS w AC	EROPS
+Forks	None or Unspecified	None or Unspecified	None or Unspecified	NaN	None or Unspecified
+Pad_Type	NaN	NaN	NaN	NaN	NaN
+Ride_Control	None or Unspecified	None or Unspecified	NaN	NaN	NaN
+Stick	NaN	NaN	NaN	NaN	NaN
+Transmission	NaN	NaN	NaN	NaN	NaN
+Turbocharged	NaN	NaN	NaN	NaN	NaN
+Blade_Extension	NaN	NaN	NaN	NaN	NaN
+Blade_Width	NaN	NaN	NaN	NaN	NaN
+Enclosure_Type	NaN	NaN	NaN	NaN	NaN
+Engine_Horsepower	NaN	NaN	NaN	NaN	NaN
+Hydraulics	2 Valve	2 Valve	Auxiliary	2 Valve	Auxiliary
+Pushblock	NaN	NaN	NaN	NaN	NaN
+Ripper	NaN	NaN	NaN	NaN	NaN
+Scarifier	NaN	NaN	NaN	NaN	NaN
+Tip_Control	NaN	NaN	NaN	NaN	NaN
+Tire_Size	None or Unspecified	23.5	NaN	NaN	NaN
+Coupler	None or Unspecified	None or Unspecified	None or Unspecified	None or Unspecified	None or Unspecified
+Coupler_System	NaN	NaN	None or Unspecified	NaN	None or Unspecified
+Grouser_Tracks	NaN	NaN	None or Unspecified	NaN	None or Unspecified
+Hydraulics_Flow	NaN	NaN	Standard	NaN	Standard
+Track_Type	NaN	NaN	NaN	NaN	NaN
+Undercarriage_Pad_Width	NaN	NaN	NaN	NaN	NaN
+Stick_Length	NaN	NaN	NaN	NaN	NaN
+Thumb	NaN	NaN	NaN	NaN	NaN
+Pattern_Changer	NaN	NaN	NaN	NaN	NaN
+Grouser_Type	NaN	NaN	NaN	NaN	NaN
+Backhoe_Mounting	NaN	NaN	NaN	NaN	NaN
+Blade_Type	NaN	NaN	NaN	NaN	NaN
+Travel_Controls	NaN	NaN	NaN	NaN	NaN
+Differential_Type	Standard	Standard	NaN	NaN	NaN
+Steering_Controls	Conventional	Conventional	NaN	NaN	NaN
+
+df.saledate.head(20)
+
+0    2006-11-16
+1    2004-03-26
+2    2004-02-26
+3    2011-05-19
+4    2009-07-23
+5    2008-12-18
+6    2004-08-26
+7    2005-11-17
+8    2009-08-27
+9    2007-08-09
+10   2008-08-21
+11   2006-08-24
+12   2005-10-20
+13   2006-01-26
+14   2006-01-03
+15   2006-11-16
+16   2007-06-14
+17   2010-01-28
+18   2006-03-09
+19   2005-11-17
+Name: saledate, dtype: datetime64[ns]
+
+# Sort DataFrame in date order
+df.sort_values(by=["saledate"], inplace=True, ascending=True)
+df.saledate.head(20)
+
+205615   1989-01-17
+274835   1989-01-31
+141296   1989-01-31
+212552   1989-01-31
+62755    1989-01-31
+54653    1989-01-31
+81383    1989-01-31
+204924   1989-01-31
+135376   1989-01-31
+113390   1989-01-31
+113394   1989-01-31
+116419   1989-01-31
+32138    1989-01-31
+127610   1989-01-31
+76171    1989-01-31
+127000   1989-01-31
+128130   1989-01-31
+127626   1989-01-31
+55455    1989-01-31
+55454    1989-01-31
+Name: saledate, dtype: datetime64[ns]
+
+# Make a copy of the original DataFrame to perform edits on
+df_tmp = df.copy()
+
+Add datetime parameters for saledate column
+df_tmp["saleYear"] = df_tmp.saledate.dt.year
+df_tmp["saleMonth"] = df_tmp.saledate.dt.month
+df_tmp["saleDay"] = df_tmp.saledate.dt.day
+df_tmp["saleDayOfWeek"] = df_tmp.saledate.dt.dayofweek
+df_tmp["saleDayOfYear"] = df_tmp.saledate.dt.dayofyear
+
+df_tmp.head().T
+
+205615	274835	141296	212552	62755
+SalesID	1646770	1821514	1505138	1671174	1329056
+SalePrice	9500	14000	50000	16000	22000
+MachineID	1126363	1194089	1473654	1327630	1336053
+ModelID	8434	10150	4139	8591	4089
+datasource	132	132	132	132	132
+auctioneerID	18	99	99	99	99
+YearMade	1974	1980	1978	1980	1984
+MachineHoursCurrentMeter	NaN	NaN	NaN	NaN	NaN
+UsageBand	NaN	NaN	NaN	NaN	NaN
+saledate	1989-01-17 00:00:00	1989-01-31 00:00:00	1989-01-31 00:00:00	1989-01-31 00:00:00	1989-01-31 00:00:00
+fiModelDesc	TD20	A66	D7G	A62	D3B
+fiBaseModel	TD20	A66	D7	A62	D3
+fiSecondaryDesc	NaN	NaN	G	NaN	B
+fiModelSeries	NaN	NaN	NaN	NaN	NaN
+fiModelDescriptor	NaN	NaN	NaN	NaN	NaN
+ProductSize	Medium	NaN	Large	NaN	NaN
+fiProductClassDesc	Track Type Tractor, Dozer - 105.0 to 130.0 Hor...	Wheel Loader - 120.0 to 135.0 Horsepower	Track Type Tractor, Dozer - 190.0 to 260.0 Hor...	Wheel Loader - Unidentified	Track Type Tractor, Dozer - 20.0 to 75.0 Horse...
+state	Texas	Florida	Florida	Florida	Florida
+ProductGroup	TTT	WL	TTT	WL	TTT
+ProductGroupDesc	Track Type Tractors	Wheel Loader	Track Type Tractors	Wheel Loader	Track Type Tractors
+Drive_System	NaN	NaN	NaN	NaN	NaN
+Enclosure	OROPS	OROPS	OROPS	EROPS	OROPS
+Forks	NaN	None or Unspecified	NaN	None or Unspecified	NaN
+Pad_Type	NaN	NaN	NaN	NaN	NaN
+Ride_Control	NaN	None or Unspecified	NaN	None or Unspecified	NaN
+Stick	NaN	NaN	NaN	NaN	NaN
+Transmission	Direct Drive	NaN	Standard	NaN	Standard
+Turbocharged	NaN	NaN	NaN	NaN	NaN
+Blade_Extension	NaN	NaN	NaN	NaN	NaN
+Blade_Width	NaN	NaN	NaN	NaN	NaN
+Enclosure_Type	NaN	NaN	NaN	NaN	NaN
+Engine_Horsepower	NaN	NaN	NaN	NaN	NaN
+Hydraulics	2 Valve	2 Valve	2 Valve	2 Valve	2 Valve
+Pushblock	NaN	NaN	NaN	NaN	NaN
+Ripper	None or Unspecified	NaN	None or Unspecified	NaN	None or Unspecified
+Scarifier	NaN	NaN	NaN	NaN	NaN
+Tip_Control	NaN	NaN	NaN	NaN	NaN
+Tire_Size	NaN	None or Unspecified	NaN	None or Unspecified	NaN
+Coupler	NaN	None or Unspecified	NaN	None or Unspecified	NaN
+Coupler_System	NaN	NaN	NaN	NaN	NaN
+Grouser_Tracks	NaN	NaN	NaN	NaN	NaN
+Hydraulics_Flow	NaN	NaN	NaN	NaN	NaN
+Track_Type	NaN	NaN	NaN	NaN	NaN
+Undercarriage_Pad_Width	NaN	NaN	NaN	NaN	NaN
+Stick_Length	NaN	NaN	NaN	NaN	NaN
+Thumb	NaN	NaN	NaN	NaN	NaN
+Pattern_Changer	NaN	NaN	NaN	NaN	NaN
+Grouser_Type	NaN	NaN	NaN	NaN	NaN
+Backhoe_Mounting	None or Unspecified	NaN	None or Unspecified	NaN	None or Unspecified
+Blade_Type	Straight	NaN	Straight	NaN	PAT
+Travel_Controls	None or Unspecified	NaN	None or Unspecified	NaN	Lever
+Differential_Type	NaN	Standard	NaN	Standard	NaN
+Steering_Controls	NaN	Conventional	NaN	Conventional	NaN
+saleYear	1989	1989	1989	1989	1989
+saleMonth	1	1	1	1	1
+saleDay	17	31	31	31	31
+saleDayOfWeek	1	1	1	1	1
+saleDayOfYear	17	31	31	31	31
+
+
+# Now we've enriched our DataFrame with date time features, we can remove 'saledate'
+df_tmp.drop("saledate", axis=1, inplace=True)
+
+# Check the values of different columns
+df_tmp.state.value_counts()
+
+Florida           67320
+Texas             53110
+California        29761
+Washington        16222
+Georgia           14633
+Maryland          13322
+Mississippi       13240
+Ohio              12369
+Illinois          11540
+Colorado          11529
+New Jersey        11156
+North Carolina    10636
+Tennessee         10298
+Alabama           10292
+Pennsylvania      10234
+South Carolina     9951
+Arizona            9364
+New York           8639
+Connecticut        8276
+Minnesota          7885
+Missouri           7178
+Nevada             6932
+Louisiana          6627
+Kentucky           5351
+Maine              5096
+Indiana            4124
+Arkansas           3933
+New Mexico         3631
+Utah               3046
+Unspecified        2801
+Wisconsin          2745
+New Hampshire      2738
+Virginia           2353
+Idaho              2025
+Oregon             1911
+Michigan           1831
+Wyoming            1672
+Iowa               1336
+Montana            1336
+Oklahoma           1326
+Nebraska            866
+West Virginia       840
+Kansas              667
+Delaware            510
+North Dakota        480
+Alaska              430
+Massachusetts       347
+Vermont             300
+South Dakota        244
+Hawaii              118
+Rhode Island         83
+Puerto Rico          42
+Washington DC         2
+Name: state, dtype: int64
+
+df_tmp.head()
+
+SalesID	SalePrice	MachineID	ModelID	datasource	auctioneerID	YearMade	MachineHoursCurrentMeter	UsageBand	fiModelDesc	...	Backhoe_Mounting	Blade_Type	Travel_Controls	Differential_Type	Steering_Controls	saleYear	saleMonth	saleDay	saleDayOfWeek	saleDayOfYear
+205615	1646770	9500.0	1126363	8434	132	18.0	1974	NaN	NaN	TD20	...	None or Unspecified	Straight	None or Unspecified	NaN	NaN	1989	1	17	1	17
+274835	1821514	14000.0	1194089	10150	132	99.0	1980	NaN	NaN	A66	...	NaN	NaN	NaN	Standard	Conventional	1989	1	31	1	31
+141296	1505138	50000.0	1473654	4139	132	99.0	1978	NaN	NaN	D7G	...	None or Unspecified	Straight	None or Unspecified	NaN	NaN	1989	1	31	1	31
+212552	1671174	16000.0	1327630	8591	132	99.0	1980	NaN	NaN	A62	...	NaN	NaN	NaN	Standard	Conventional	1989	1	31	1	31
+62755	1329056	22000.0	1336053	4089	132	99.0	1984	NaN	NaN	D3B	...	None or Unspecified	PAT	Lever	NaN	NaN	1989	1	31	1	31
+5 rows × 57 columns
+
+len(df_tmp)
+412698
+
+# Modelling
+# We've done enough EDA (we could always do more) but let's start to do some model-driven EDA.
+# Let's build a machine learning model 
+from sklearn.ensemble import RandomForestRegressor
+
+model = RandomForestRegressor(n_jobs=-1,
+                              random_state=42)
+
+model.fit(df_tmp.drop("SalePrice", axis=1), df_tmp["SalePrice"])
+
+df_tmp.info()
+
+<class 'pandas.core.frame.DataFrame'>
+Int64Index: 412698 entries, 205615 to 409203
+Data columns (total 57 columns):
+SalesID                     412698 non-null int64
+SalePrice                   412698 non-null float64
+MachineID                   412698 non-null int64
+ModelID                     412698 non-null int64
+datasource                  412698 non-null int64
+auctioneerID                392562 non-null float64
+YearMade                    412698 non-null int64
+MachineHoursCurrentMeter    147504 non-null float64
+UsageBand                   73670 non-null object
+fiModelDesc                 412698 non-null object
+fiBaseModel                 412698 non-null object
+fiSecondaryDesc             271971 non-null object
+fiModelSeries               58667 non-null object
+fiModelDescriptor           74816 non-null object
+ProductSize                 196093 non-null object
+fiProductClassDesc          412698 non-null object
+state                       412698 non-null object
+ProductGroup                412698 non-null object
+ProductGroupDesc            412698 non-null object
+Drive_System                107087 non-null object
+Enclosure                   412364 non-null object
+Forks                       197715 non-null object
+Pad_Type                    81096 non-null object
+Ride_Control                152728 non-null object
+Stick                       81096 non-null object
+Transmission                188007 non-null object
+Turbocharged                81096 non-null object
+Blade_Extension             25983 non-null object
+Blade_Width                 25983 non-null object
+Enclosure_Type              25983 non-null object
+Engine_Horsepower           25983 non-null object
+Hydraulics                  330133 non-null object
+Pushblock                   25983 non-null object
+Ripper                      106945 non-null object
+Scarifier                   25994 non-null object
+Tip_Control                 25983 non-null object
+Tire_Size                   97638 non-null object
+Coupler                     220679 non-null object
+Coupler_System              44974 non-null object
+Grouser_Tracks              44875 non-null object
+Hydraulics_Flow             44875 non-null object
+Track_Type                  102193 non-null object
+Undercarriage_Pad_Width     102916 non-null object
+Stick_Length                102261 non-null object
+Thumb                       102332 non-null object
+Pattern_Changer             102261 non-null object
+Grouser_Type                102193 non-null object
+Backhoe_Mounting            80712 non-null object
+Blade_Type                  81875 non-null object
+Travel_Controls             81877 non-null object
+Differential_Type           71564 non-null object
+Steering_Controls           71522 non-null object
+saleYear                    412698 non-null int64
+saleMonth                   412698 non-null int64
+saleDay                     412698 non-null int64
+saleDayOfWeek               412698 non-null int64
+saleDayOfYear               412698 non-null int64
+dtypes: float64(3), int64(10), object(44)
+memory usage: 182.6+ MB
+df_tmp["UsageBand"].dtype
+dtype('O')
+
+df_tmp.isna().sum()
+
+SalesID                          0
+SalePrice                        0
+MachineID                        0
+ModelID                          0
+datasource                       0
+auctioneerID                 20136
+YearMade                         0
+MachineHoursCurrentMeter    265194
+UsageBand                   339028
+fiModelDesc                      0
+fiBaseModel                      0
+fiSecondaryDesc             140727
+fiModelSeries               354031
+fiModelDescriptor           337882
+ProductSize                 216605
+fiProductClassDesc               0
+state                            0
+ProductGroup                     0
+ProductGroupDesc                 0
+Drive_System                305611
+Enclosure                      334
+Forks                       214983
+Pad_Type                    331602
+Ride_Control                259970
+Stick                       331602
+Transmission                224691
+Turbocharged                331602
+Blade_Extension             386715
+Blade_Width                 386715
+Enclosure_Type              386715
+Engine_Horsepower           386715
+Hydraulics                   82565
+Pushblock                   386715
+Ripper                      305753
+Scarifier                   386704
+Tip_Control                 386715
+Tire_Size                   315060
+Coupler                     192019
+Coupler_System              367724
+Grouser_Tracks              367823
+Hydraulics_Flow             367823
+Track_Type                  310505
+Undercarriage_Pad_Width     309782
+Stick_Length                310437
+Thumb                       310366
+Pattern_Changer             310437
+Grouser_Type                310505
+Backhoe_Mounting            331986
+Blade_Type                  330823
+Travel_Controls             330821
+Differential_Type           341134
+Steering_Controls           341176
+saleYear                         0
+saleMonth                        0
+saleDay                          0
+saleDayOfWeek                    0
+saleDayOfYear                    0
+dtype: int64
+
+# Convert string to categories
+# One way we can turn all of our data into numbers is by converting them into pandas categories.
+
+df_tmp.head().T
+
+205615	274835	141296	212552	62755
+SalesID	1646770	1821514	1505138	1671174	1329056
+SalePrice	9500	14000	50000	16000	22000
+MachineID	1126363	1194089	1473654	1327630	1336053
+ModelID	8434	10150	4139	8591	4089
+datasource	132	132	132	132	132
+auctioneerID	18	99	99	99	99
+YearMade	1974	1980	1978	1980	1984
+MachineHoursCurrentMeter	NaN	NaN	NaN	NaN	NaN
+UsageBand	NaN	NaN	NaN	NaN	NaN
+fiModelDesc	TD20	A66	D7G	A62	D3B
+fiBaseModel	TD20	A66	D7	A62	D3
+fiSecondaryDesc	NaN	NaN	G	NaN	B
+fiModelSeries	NaN	NaN	NaN	NaN	NaN
+fiModelDescriptor	NaN	NaN	NaN	NaN	NaN
+ProductSize	Medium	NaN	Large	NaN	NaN
+fiProductClassDesc	Track Type Tractor, Dozer - 105.0 to 130.0 Hor...	Wheel Loader - 120.0 to 135.0 Horsepower	Track Type Tractor, Dozer - 190.0 to 260.0 Hor...	Wheel Loader - Unidentified	Track Type Tractor, Dozer - 20.0 to 75.0 Horse...
+state	Texas	Florida	Florida	Florida	Florida
+ProductGroup	TTT	WL	TTT	WL	TTT
+ProductGroupDesc	Track Type Tractors	Wheel Loader	Track Type Tractors	Wheel Loader	Track Type Tractors
+Drive_System	NaN	NaN	NaN	NaN	NaN
+Enclosure	OROPS	OROPS	OROPS	EROPS	OROPS
+Forks	NaN	None or Unspecified	NaN	None or Unspecified	NaN
+Pad_Type	NaN	NaN	NaN	NaN	NaN
+Ride_Control	NaN	None or Unspecified	NaN	None or Unspecified	NaN
+Stick	NaN	NaN	NaN	NaN	NaN
+Transmission	Direct Drive	NaN	Standard	NaN	Standard
+Turbocharged	NaN	NaN	NaN	NaN	NaN
+Blade_Extension	NaN	NaN	NaN	NaN	NaN
+Blade_Width	NaN	NaN	NaN	NaN	NaN
+Enclosure_Type	NaN	NaN	NaN	NaN	NaN
+Engine_Horsepower	NaN	NaN	NaN	NaN	NaN
+Hydraulics	2 Valve	2 Valve	2 Valve	2 Valve	2 Valve
+Pushblock	NaN	NaN	NaN	NaN	NaN
+Ripper	None or Unspecified	NaN	None or Unspecified	NaN	None or Unspecified
+Scarifier	NaN	NaN	NaN	NaN	NaN
+Tip_Control	NaN	NaN	NaN	NaN	NaN
+Tire_Size	NaN	None or Unspecified	NaN	None or Unspecified	NaN
+Coupler	NaN	None or Unspecified	NaN	None or Unspecified	NaN
+Coupler_System	NaN	NaN	NaN	NaN	NaN
+Grouser_Tracks	NaN	NaN	NaN	NaN	NaN
+Hydraulics_Flow	NaN	NaN	NaN	NaN	NaN
+Track_Type	NaN	NaN	NaN	NaN	NaN
+Undercarriage_Pad_Width	NaN	NaN	NaN	NaN	NaN
+Stick_Length	NaN	NaN	NaN	NaN	NaN
+Thumb	NaN	NaN	NaN	NaN	NaN
+Pattern_Changer	NaN	NaN	NaN	NaN	NaN
+Grouser_Type	NaN	NaN	NaN	NaN	NaN
+Backhoe_Mounting	None or Unspecified	NaN	None or Unspecified	NaN	None or Unspecified
+Blade_Type	Straight	NaN	Straight	NaN	PAT
+Travel_Controls	None or Unspecified	NaN	None or Unspecified	NaN	Lever
+Differential_Type	NaN	Standard	NaN	Standard	NaN
+Steering_Controls	NaN	Conventional	NaN	Conventional	NaN
+saleYear	1989	1989	1989	1989	1989
+saleMonth	1	1	1	1	1
+saleDay	17	31	31	31	31
+saleDayOfWeek	1	1	1	1	1
+saleDayOfYear	17	31	31	31	31
+
+pd.api.types.is_string_dtype(df_tmp["UsageBand"])
+True
+# Find the columns which contain strings
+for label, content in df_tmp.items():
+    if pd.api.types.is_string_dtype(content):
+        print(label)
+UsageBand
+fiModelDesc
+fiBaseModel
+fiSecondaryDesc
+fiModelSeries
+fiModelDescriptor
+ProductSize
+fiProductClassDesc
+state
+ProductGroup
+ProductGroupDesc
+Drive_System
+Enclosure
+Forks
+Pad_Type
+Ride_Control
+Stick
+Transmission
+Turbocharged
+Blade_Extension
+Blade_Width
+Enclosure_Type
+Engine_Horsepower
+Hydraulics
+Pushblock
+Ripper
+Scarifier
+Tip_Control
+Tire_Size
+Coupler
+Coupler_System
+Grouser_Tracks
+Hydraulics_Flow
+Track_Type
+Undercarriage_Pad_Width
+Stick_Length
+Thumb
+Pattern_Changer
+Grouser_Type
+Backhoe_Mounting
+Blade_Type
+Travel_Controls
+Differential_Type
+Steering_Controls
+
+# If you're wondering what df.items() does, here's an example
+random_dict = {"key1": "hello",
+               "key2": "world!"}
+
+for key, value in random_dict.items():
+    print(f"this is a key: {key}",
+          f"this is a value: {value}")
+this is a key: key1 this is a value: hello
+this is a key: key2 this is a value: world!
+
+# This will turn all of the string value into category values
+for label, content in df_tmp.items():
+    if pd.api.types.is_string_dtype(content):
+        df_tmp[label] = content.astype("category").cat.as_ordered()
+
+df_tmp.info()
+
+<class 'pandas.core.frame.DataFrame'>
+Int64Index: 412698 entries, 205615 to 409203
+Data columns (total 57 columns):
+SalesID                     412698 non-null int64
+SalePrice                   412698 non-null float64
+MachineID                   412698 non-null int64
+ModelID                     412698 non-null int64
+datasource                  412698 non-null int64
+auctioneerID                392562 non-null float64
+YearMade                    412698 non-null int64
+MachineHoursCurrentMeter    147504 non-null float64
+UsageBand                   73670 non-null category
+fiModelDesc                 412698 non-null category
+fiBaseModel                 412698 non-null category
+fiSecondaryDesc             271971 non-null category
+fiModelSeries               58667 non-null category
+fiModelDescriptor           74816 non-null category
+ProductSize                 196093 non-null category
+fiProductClassDesc          412698 non-null category
+state                       412698 non-null category
+ProductGroup                412698 non-null category
+ProductGroupDesc            412698 non-null category
+Drive_System                107087 non-null category
+Enclosure                   412364 non-null category
+Forks                       197715 non-null category
+Pad_Type                    81096 non-null category
+Ride_Control                152728 non-null category
+Stick                       81096 non-null category
+Transmission                188007 non-null category
+Turbocharged                81096 non-null category
+Blade_Extension             25983 non-null category
+Blade_Width                 25983 non-null category
+Enclosure_Type              25983 non-null category
+Engine_Horsepower           25983 non-null category
+Hydraulics                  330133 non-null category
+Pushblock                   25983 non-null category
+Ripper                      106945 non-null category
+Scarifier                   25994 non-null category
+Tip_Control                 25983 non-null category
+Tire_Size                   97638 non-null category
+Coupler                     220679 non-null category
+Coupler_System              44974 non-null category
+Grouser_Tracks              44875 non-null category
+Hydraulics_Flow             44875 non-null category
+Track_Type                  102193 non-null category
+Undercarriage_Pad_Width     102916 non-null category
+Stick_Length                102261 non-null category
+Thumb                       102332 non-null category
+Pattern_Changer             102261 non-null category
+Grouser_Type                102193 non-null category
+Backhoe_Mounting            80712 non-null category
+Blade_Type                  81875 non-null category
+Travel_Controls             81877 non-null category
+Differential_Type           71564 non-null category
+Steering_Controls           71522 non-null category
+saleYear                    412698 non-null int64
+saleMonth                   412698 non-null int64
+saleDay                     412698 non-null int64
+saleDayOfWeek               412698 non-null int64
+saleDayOfYear               412698 non-null int64
+dtypes: category(44), float64(3), int64(10)
+memory usage: 63.3 MB
+
+df_tmp.state.cat.categories
+
+Index(['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado',
+       'Connecticut', 'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho',
+       'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana',
+       'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota',
+       'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada',
+       'New Hampshire', 'New Jersey', 'New Mexico', 'New York',
+       'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon',
+       'Pennsylvania', 'Puerto Rico', 'Rhode Island', 'South Carolina',
+       'South Dakota', 'Tennessee', 'Texas', 'Unspecified', 'Utah', 'Vermont',
+       'Virginia', 'Washington', 'Washington DC', 'West Virginia', 'Wisconsin',
+       'Wyoming'],
+      dtype='object')
+
+df_tmp.state.cat.codes
+
+205615    43
+274835     8
+141296     8
+212552     8
+62755      8
+          ..
+410879     4
+412476     4
+411927     4
+407124     4
+409203     4
+Length: 412698, dtype: int8
+
+#Thanks to pandas Categories we now have a way to access all of our data in the form of numbers.
+# Check missing data
+
+df_tmp.isnull().sum()/len(df_tmp)
+
+SalesID                     0.000000
+SalePrice                   0.000000
+MachineID                   0.000000
+ModelID                     0.000000
+datasource                  0.000000
+auctioneerID                0.048791
+YearMade                    0.000000
+MachineHoursCurrentMeter    0.642586
+UsageBand                   0.821492
+fiModelDesc                 0.000000
+fiBaseModel                 0.000000
+fiSecondaryDesc             0.340993
+fiModelSeries               0.857845
+fiModelDescriptor           0.818715
+ProductSize                 0.524851
+fiProductClassDesc          0.000000
+state                       0.000000
+ProductGroup                0.000000
+ProductGroupDesc            0.000000
+Drive_System                0.740520
+Enclosure                   0.000809
+Forks                       0.520921
+Pad_Type                    0.803498
+Ride_Control                0.629928
+Stick                       0.803498
+Transmission                0.544444
+Turbocharged                0.803498
+Blade_Extension             0.937041
+Blade_Width                 0.937041
+Enclosure_Type              0.937041
+Engine_Horsepower           0.937041
+Hydraulics                  0.200062
+Pushblock                   0.937041
+Ripper                      0.740864
+Scarifier                   0.937014
+Tip_Control                 0.937041
+Tire_Size                   0.763415
+Coupler                     0.465277
+Coupler_System              0.891024
+Grouser_Tracks              0.891264
+Hydraulics_Flow             0.891264
+Track_Type                  0.752378
+Undercarriage_Pad_Width     0.750626
+Stick_Length                0.752213
+Thumb                       0.752041
+Pattern_Changer             0.752213
+Grouser_Type                0.752378
+Backhoe_Mounting            0.804428
+Blade_Type                  0.801610
+Travel_Controls             0.801606
+Differential_Type           0.826595
+Steering_Controls           0.826697
+saleYear                    0.000000
+saleMonth                   0.000000
+saleDay                     0.000000
+saleDayOfWeek               0.000000
+saleDayOfYear               0.000000
+
+# Save preprocessed data
+# Export current tmp dataframe
+
+df_tmp.to_csv("data/bluebook-for-bulldozers/train_tmp.csv",
+              index=False)
+
+# Import preprocessed data
+
+df_tmp = pd.read_csv("data/bluebook-for-bulldozers/train_tmp.csv",
+                     low_memory=False)
+
+df_tmp.head().T
+
+0	1	2	3	4
+SalesID	1646770	1821514	1505138	1671174	1329056
+SalePrice	9500	14000	50000	16000	22000
+MachineID	1126363	1194089	1473654	1327630	1336053
+ModelID	8434	10150	4139	8591	4089
+datasource	132	132	132	132	132
+auctioneerID	18	99	99	99	99
+YearMade	1974	1980	1978	1980	1984
+MachineHoursCurrentMeter	NaN	NaN	NaN	NaN	NaN
+UsageBand	NaN	NaN	NaN	NaN	NaN
+fiModelDesc	TD20	A66	D7G	A62	D3B
+fiBaseModel	TD20	A66	D7	A62	D3
+fiSecondaryDesc	NaN	NaN	G	NaN	B
+fiModelSeries	NaN	NaN	NaN	NaN	NaN
+fiModelDescriptor	NaN	NaN	NaN	NaN	NaN
+ProductSize	Medium	NaN	Large	NaN	NaN
+fiProductClassDesc	Track Type Tractor, Dozer - 105.0 to 130.0 Hor...	Wheel Loader - 120.0 to 135.0 Horsepower	Track Type Tractor, Dozer - 190.0 to 260.0 Hor...	Wheel Loader - Unidentified	Track Type Tractor, Dozer - 20.0 to 75.0 Horse...
+state	Texas	Florida	Florida	Florida	Florida
+ProductGroup	TTT	WL	TTT	WL	TTT
+ProductGroupDesc	Track Type Tractors	Wheel Loader	Track Type Tractors	Wheel Loader	Track Type Tractors
+Drive_System	NaN	NaN	NaN	NaN	NaN
+Enclosure	OROPS	OROPS	OROPS	EROPS	OROPS
+Forks	NaN	None or Unspecified	NaN	None or Unspecified	NaN
+Pad_Type	NaN	NaN	NaN	NaN	NaN
+Ride_Control	NaN	None or Unspecified	NaN	None or Unspecified	NaN
+Stick	NaN	NaN	NaN	NaN	NaN
+Transmission	Direct Drive	NaN	Standard	NaN	Standard
+Turbocharged	NaN	NaN	NaN	NaN	NaN
+Blade_Extension	NaN	NaN	NaN	NaN	NaN
+Blade_Width	NaN	NaN	NaN	NaN	NaN
+Enclosure_Type	NaN	NaN	NaN	NaN	NaN
+Engine_Horsepower	NaN	NaN	NaN	NaN	NaN
+Hydraulics	2 Valve	2 Valve	2 Valve	2 Valve	2 Valve
+Pushblock	NaN	NaN	NaN	NaN	NaN
+Ripper	None or Unspecified	NaN	None or Unspecified	NaN	None or Unspecified
+Scarifier	NaN	NaN	NaN	NaN	NaN
+Tip_Control	NaN	NaN	NaN	NaN	NaN
+Tire_Size	NaN	None or Unspecified	NaN	None or Unspecified	NaN
+Coupler	NaN	None or Unspecified	NaN	None or Unspecified	NaN
+Coupler_System	NaN	NaN	NaN	NaN	NaN
+Grouser_Tracks	NaN	NaN	NaN	NaN	NaN
+Hydraulics_Flow	NaN	NaN	NaN	NaN	NaN
+Track_Type	NaN	NaN	NaN	NaN	NaN
+Undercarriage_Pad_Width	NaN	NaN	NaN	NaN	NaN
+Stick_Length	NaN	NaN	NaN	NaN	NaN
+Thumb	NaN	NaN	NaN	NaN	NaN
+Pattern_Changer	NaN	NaN	NaN	NaN	NaN
+Grouser_Type	NaN	NaN	NaN	NaN	NaN
+Backhoe_Mounting	None or Unspecified	NaN	None or Unspecified	NaN	None or Unspecified
+Blade_Type	Straight	NaN	Straight	NaN	PAT
+Travel_Controls	None or Unspecified	NaN	None or Unspecified	NaN	Lever
+Differential_Type	NaN	Standard	NaN	Standard	NaN
+Steering_Controls	NaN	Conventional	NaN	Conventional	NaN
+saleYear	1989	1989	1989	1989	1989
+saleMonth	1	1	1	1	1
+saleDay	17	31	31	31	31
+saleDayOfWeek	1	1	1	1	1
+saleDayOfYear	17	31	31	31	31
+
+df_tmp.isna().sum()
+
+SalesID                          0
+SalePrice                        0
+MachineID                        0
+ModelID                          0
+datasource                       0
+auctioneerID                 20136
+YearMade                         0
+MachineHoursCurrentMeter    265194
+UsageBand                   339028
+fiModelDesc                      0
+fiBaseModel                      0
+fiSecondaryDesc             140727
+fiModelSeries               354031
+fiModelDescriptor           337882
+ProductSize                 216605
+fiProductClassDesc               0
+state                            0
+ProductGroup                     0
+ProductGroupDesc                 0
+Drive_System                305611
+Enclosure                      334
+Forks                       214983
+Pad_Type                    331602
+Ride_Control                259970
+Stick                       331602
+Transmission                224691
+Turbocharged                331602
+Blade_Extension             386715
+Blade_Width                 386715
+Enclosure_Type              386715
+Engine_Horsepower           386715
+Hydraulics                   82565
+Pushblock                   386715
+Ripper                      305753
+Scarifier                   386704
+Tip_Control                 386715
+Tire_Size                   315060
+Coupler                     192019
+Coupler_System              367724
+Grouser_Tracks              367823
+Hydraulics_Flow             367823
+Track_Type                  310505
+Undercarriage_Pad_Width     309782
+Stick_Length                310437
+Thumb                       310366
+Pattern_Changer             310437
+Grouser_Type                310505
+Backhoe_Mounting            331986
+Blade_Type                  330823
+Travel_Controls             330821
+Differential_Type           341134
+Steering_Controls           341176
+saleYear                         0
+saleMonth                        0
+saleDay                          0
+saleDayOfWeek                    0
+saleDayOfYear                    0
+dtype: int64
+
+# Fill missing values
+# Fill numerical missing values first
+for label, content in df_tmp.items():
+    if pd.api.types.is_numeric_dtype(content):
+        print(label)
+SalesID
+SalePrice
+MachineID
+ModelID
+datasource
+auctioneerID
+YearMade
+MachineHoursCurrentMeter
+saleYear
+saleMonth
+saleDay
+saleDayOfWeek
+saleDayOfYear
+df_tmp.ModelID
+0          8434
+1         10150
+2          4139
+3          8591
+4          4089
+          ...  
+412693     5266
+412694    19330
+412695    17244
+412696     3357
+412697     4701
+Name: ModelID, Length: 412698, dtype: int64
+
+# Check for which numeric columns have null values
+for label, content in df_tmp.items():
+    if pd.api.types.is_numeric_dtype(content):
+        if pd.isnull(content).sum():
+            print(label)
+auctioneerID
+MachineHoursCurrentMeter
+
+# Fill numeric rows with the median
+for label, content in df_tmp.items():
+    if pd.api.types.is_numeric_dtype(content):
+        if pd.isnull(content).sum():
+            # Add a binary column which tells us if the data was missing or not
+            df_tmp[label+"_is_missing"] = pd.isnull(content)
+            # Fill missing numeric values with median
+            df_tmp[label] = content.fillna(content.median())
+
+# Demonstrate how median is more robust than mean
+hundreds = np.full((1000,), 100)
+hundreds_billion = np.append(hundreds, 1000000000)
+np.mean(hundreds), np.mean(hundreds_billion), np.median(hundreds), np.median(hundreds_billion)
+(100.0, 999100.8991008991, 100.0, 100.0)
+
+# Check if there's any null numeric values
+for label, content in df_tmp.items():
+    if pd.api.types.is_numeric_dtype(content):
+        if pd.isnull(content).sum():
+            print(label)
+
+# Check to see how many examples were missing
+df_tmp.auctioneerID_is_missing.value_counts()
+False    392562
+True      20136
+Name: auctioneerID_is_missing, dtype: int64
+df_tmp.isna().sum()
+SalesID                                     0
+SalePrice                                   0
+MachineID                                   0
+ModelID                                     0
+datasource                                  0
+auctioneerID                                0
+YearMade                                    0
+MachineHoursCurrentMeter                    0
+UsageBand                              339028
+fiModelDesc                                 0
+fiBaseModel                                 0
+fiSecondaryDesc                        140727
+fiModelSeries                          354031
+fiModelDescriptor                      337882
+ProductSize                            216605
+fiProductClassDesc                          0
+state                                       0
+ProductGroup                                0
+ProductGroupDesc                            0
+Drive_System                           305611
+Enclosure                                 334
+Forks                                  214983
+Pad_Type                               331602
+Ride_Control                           259970
+Stick                                  331602
+Transmission                           224691
+Turbocharged                           331602
+Blade_Extension                        386715
+Blade_Width                            386715
+Enclosure_Type                         386715
+Engine_Horsepower                      386715
+Hydraulics                              82565
+Pushblock                              386715
+Ripper                                 305753
+Scarifier                              386704
+Tip_Control                            386715
+Tire_Size                              315060
+Coupler                                192019
+Coupler_System                         367724
+Grouser_Tracks                         367823
+Hydraulics_Flow                        367823
+Track_Type                             310505
+Undercarriage_Pad_Width                309782
+Stick_Length                           310437
+Thumb                                  310366
+Pattern_Changer                        310437
+Grouser_Type                           310505
+Backhoe_Mounting                       331986
+Blade_Type                             330823
+Travel_Controls                        330821
+Differential_Type                      341134
+Steering_Controls                      341176
+saleYear                                    0
+saleMonth                                   0
+saleDay                                     0
+saleDayOfWeek                               0
+saleDayOfYear                               0
+auctioneerID_is_missing                     0
+MachineHoursCurrentMeter_is_missing         0
+dtype: int64
+
+# Filling and turning categorical variables into numbers
+# Check for columns which aren't numeric
+for label, content in df_tmp.items():
+    if not pd.api.types.is_numeric_dtype(content):
+        print(label)
+UsageBand
+fiModelDesc
+fiBaseModel
+fiSecondaryDesc
+fiModelSeries
+fiModelDescriptor
+ProductSize
+fiProductClassDesc
+state
+ProductGroup
+ProductGroupDesc
+Drive_System
+Enclosure
+Forks
+Pad_Type
+Ride_Control
+Stick
+Transmission
+Turbocharged
+Blade_Extension
+Blade_Width
+Enclosure_Type
+Engine_Horsepower
+Hydraulics
+Pushblock
+Ripper
+Scarifier
+Tip_Control
+Tire_Size
+Coupler
+Coupler_System
+Grouser_Tracks
+Hydraulics_Flow
+Track_Type
+Undercarriage_Pad_Width
+Stick_Length
+Thumb
+Pattern_Changer
+Grouser_Type
+Backhoe_Mounting
+Blade_Type
+Travel_Controls
+Differential_Type
+Steering_Controls
+
+# Turn categorical variables into numbers and fill missing
+for label, content in df_tmp.items():
+    if not pd.api.types.is_numeric_dtype(content):
+        # Add binary column to indicate whether sample had missing value
+        df_tmp[label+"_is_missing"] = pd.isnull(content)
+        # Turn categories into numbers and add +1
+        df_tmp[label] = pd.Categorical(content).codes+1
+pd.Categorical(df_tmp["state"]).codes+1
+array([44,  9,  9, ...,  5,  5,  5], dtype=int8)
+
+df_tmp.info()
+
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 412698 entries, 0 to 412697
+Columns: 103 entries, SalesID to Steering_Controls_is_missing
+dtypes: bool(46), float64(3), int16(4), int64(10), int8(40)
+memory usage: 77.9 MB
+
+df_tmp.head().T
+
+0	1	2	3	4
+SalesID	1646770	1821514	1505138	1671174	1329056
+SalePrice	9500	14000	50000	16000	22000
+MachineID	1126363	1194089	1473654	1327630	1336053
+ModelID	8434	10150	4139	8591	4089
+datasource	132	132	132	132	132
+...	...	...	...	...	...
+Backhoe_Mounting_is_missing	False	True	False	True	False
+Blade_Type_is_missing	False	True	False	True	False
+Travel_Controls_is_missing	False	True	False	True	False
+Differential_Type_is_missing	True	False	True	False	True
+Steering_Controls_is_missing	True	False	True	False	True
+103 rows × 5 columns
+
+df_tmp.isna().sum()
+
+SalesID                         0
+SalePrice                       0
+MachineID                       0
+ModelID                         0
+datasource                      0
+                               ..
+Backhoe_Mounting_is_missing     0
+Blade_Type_is_missing           0
+Travel_Controls_is_missing      0
+Differential_Type_is_missing    0
+Steering_Controls_is_missing    0
+Length: 103, dtype: int64
+# Now that all of data is numeric as well as our dataframe has no missing values, we should be able to build a machine learning model.
+
+df_tmp.head()
+
+SalesID	SalePrice	MachineID	ModelID	datasource	auctioneerID	YearMade	MachineHoursCurrentMeter	UsageBand	fiModelDesc	...	Undercarriage_Pad_Width_is_missing	Stick_Length_is_missing	Thumb_is_missing	Pattern_Changer_is_missing	Grouser_Type_is_missing	Backhoe_Mounting_is_missing	Blade_Type_is_missing	Travel_Controls_is_missing	Differential_Type_is_missing	Steering_Controls_is_missing
+0	1646770	9500.0	1126363	8434	132	18.0	1974	0.0	0	4593	...	True	True	True	True	True	False	False	False	True	True
+1	1821514	14000.0	1194089	10150	132	99.0	1980	0.0	0	1820	...	True	True	True	True	True	True	True	True	False	False
+2	1505138	50000.0	1473654	4139	132	99.0	1978	0.0	0	2348	...	True	True	True	True	True	False	False	False	True	True
+3	1671174	16000.0	1327630	8591	132	99.0	1980	0.0	0	1819	...	True	True	True	True	True	True	True	True	False	False
+4	1329056	22000.0	1336053	4089	132	99.0	1984	0.0	0	2119	...	True	True	True	True	True	False	False	False	True	True
+5 rows × 103 columns
+
+len(df_tmp)
+
+412698
+
+%%time
+
+# Instantiate model
+model = RandomForestRegressor(n_jobs=-1,
+                              random_state=42)
+
+# Fit the model
+model.fit(df_tmp.drop("SalePrice", axis=1), df_tmp["SalePrice"])
+CPU times: user 21min 9s, sys: 16.6 s, total: 21min 25s
+Wall time: 6min 58s
+RandomForestRegressor(bootstrap=True, ccp_alpha=0.0, criterion='mse',
+                      max_depth=None, max_features='auto', max_leaf_nodes=None,
+                      max_samples=None, min_impurity_decrease=0.0,
+                      min_impurity_split=None, min_samples_leaf=1,
+                      min_samples_split=2, min_weight_fraction_leaf=0.0,
+                      n_estimators=100, n_jobs=-1, oob_score=False,
+                      random_state=42, verbose=0, warm_start=False)
+
+# Score the model
+model.score(df_tmp.drop("SalePrice", axis=1), df_tmp["SalePrice"])
+0.9875468079970563
+Question: Whhy isn't the metric reliable?
+
+# Splitting data into train/validation sets
+
+df_tmp.saleYear
+
+0         1989
+1         1989
+2         1989
+3         1989
+4         1989
+          ... 
+412693    2012
+412694    2012
+412695    2012
+412696    2012
+412697    2012
+Name: saleYear, Length: 412698, dtype: int64
+
+df_tmp.saleYear.value_counts()
+
+2009    43849
+2008    39767
+2011    35197
+2010    33390
+2007    32208
+2006    21685
+2005    20463
+2004    19879
+2001    17594
+2000    17415
+2002    17246
+2003    15254
+1998    13046
+1999    12793
+2012    11573
+1997     9785
+1996     8829
+1995     8530
+1994     7929
+1993     6303
+1992     5519
+1991     5109
+1989     4806
+1990     4529
+Name: saleYear, dtype: int64
+
+# Split data into training and validation
+
+df_val = df_tmp[df_tmp.saleYear == 2012]
+df_train = df_tmp[df_tmp.saleYear != 2012]
+
+len(df_val), len(df_train)
+
+(11573, 401125)
+
+# Split data into X & y
+
+X_train, y_train = df_train.drop("SalePrice", axis=1), df_train.SalePrice
+X_valid, y_valid = df_val.drop("SalePrice", axis=1), df_val.SalePrice
+
+X_train.shape, y_train.shape, X_valid.shape, y_valid.shape
+((401125, 102), (401125,), (11573, 102), (11573,))
+y_train
+0          9500.0
+1         14000.0
+2         50000.0
+3         16000.0
+4         22000.0
+           ...   
+401120    29000.0
+401121    11000.0
+401122    11000.0
+401123    18000.0
+401124    13500.0
+Name: SalePrice, Length: 401125, dtype: float64
+
+# Building an evaluation function
+# Create evaluation function (the competition uses RMSLE)
+from sklearn.metrics import mean_squared_log_error, mean_absolute_error, r2_score
+
+def rmsle(y_test, y_preds):
+    """
+    Caculates root mean squared log error between predictions and
+    true labels.
+    """
+    return np.sqrt(mean_squared_log_error(y_test, y_preds))
+
+# Create function to evaluate model on a few different levels
+
+def show_scores(model):
+    train_preds = model.predict(X_train)
+    val_preds = model.predict(X_valid)
+    scores = {"Training MAE": mean_absolute_error(y_train, train_preds),
+              "Valid MAE": mean_absolute_error(y_valid, val_preds),
+              "Training RMSLE": rmsle(y_train, train_preds),
+              "Valid RMSLE": rmsle(y_valid, val_preds),
+              "Training R^2": r2_score(y_train, train_preds),
+              "Valid R^2": r2_score(y_valid, val_preds)}
+    return scores
+
+# Testing our model on a subset (to tune the hyperparameters)
+# %%time
+# model = RandomForestRegressor(n_jobs=-1, 
+#                               random_state=42)
+
+# model.fit(X_train, y_train)
+len(X_train)
+401125
+# Change max_samples value
+model = RandomForestRegressor(n_jobs=-1,
+                              random_state=42,
+                              max_samples=10000)
+%%time
+
+# Cutting down on the max number of samples each estimator can see improves training time
+model.fit(X_train, y_train)
+CPU times: user 44.7 s, sys: 1.01 s, total: 45.7 s
+Wall time: 16.6 s
+RandomForestRegressor(bootstrap=True, ccp_alpha=0.0, criterion='mse',
+                      max_depth=None, max_features='auto', max_leaf_nodes=None,
+                      max_samples=10000, min_impurity_decrease=0.0,
+                      min_impurity_split=None, min_samples_leaf=1,
+                      min_samples_split=2, min_weight_fraction_leaf=0.0,
+                      n_estimators=100, n_jobs=-1, oob_score=False,
+                      random_state=42, verbose=0, warm_start=False)
+(X_train.shape[0] * 100) / 1000000
+40.1125
+10000 * 100
+1000000
+
+show_scores(model)
+
+{'Training MAE': 5561.2988092240585,
+ 'Valid MAE': 7177.26365505919,
+ 'Training RMSLE': 0.257745378256977,
+ 'Valid RMSLE': 0.29362638671089003,
+ 'Training R^2': 0.8606658995199189,
+ 'Valid R^2': 0.8320374995090507}
+
+# Hyerparameter tuning with RandomizedSearchCV
+%%time
+from sklearn.model_selection import RandomizedSearchCV
+
+# Different RandomForestRegressor hyperparameters
+rf_grid = {"n_estimators": np.arange(10, 100, 10),
+           "max_depth": [None, 3, 5, 10],
+           "min_samples_split": np.arange(2, 20, 2),
+           "min_samples_leaf": np.arange(1, 20, 2),
+           "max_features": [0.5, 1, "sqrt", "auto"],
+           "max_samples": [10000]}
+
+# Instantiate RandomizedSearchCV model
+rs_model = RandomizedSearchCV(RandomForestRegressor(n_jobs=-1,
+                                                    random_state=42),
+                              param_distributions=rf_grid,
+                              n_iter=2,
+                              cv=5,
+                              verbose=True)
+
+# Fit the RandomizedSearchCV model
+rs_model.fit(X_train, y_train)
+Fitting 5 folds for each of 2 candidates, totalling 10 fits
+[Parallel(n_jobs=1)]: Using backend SequentialBackend with 1 concurrent workers.
+[Parallel(n_jobs=1)]: Done  10 out of  10 | elapsed:  1.6min finished
+CPU times: user 1min, sys: 6.52 s, total: 1min 7s
+Wall time: 1min 49s
+RandomizedSearchCV(cv=5, error_score=nan,
+                   estimator=RandomForestRegressor(bootstrap=True,
+                                                   ccp_alpha=0.0,
+                                                   criterion='mse',
+                                                   max_depth=None,
+                                                   max_features='auto',
+                                                   max_leaf_nodes=None,
+                                                   max_samples=None,
+                                                   min_impurity_decrease=0.0,
+                                                   min_impurity_split=None,
+                                                   min_samples_leaf=1,
+                                                   min_samples_split=2,
+                                                   min_weight_fraction_leaf=0.0,
+                                                   n_estimators=100, n_jobs=-1,
+                                                   oob_score=False,...
+                   param_distributions={'max_depth': [None, 3, 5, 10],
+                                        'max_features': [0.5, 1, 'sqrt',
+                                                         'auto'],
+                                        'max_samples': [10000],
+                                        'min_samples_leaf': array([ 1,  3,  5,  7,  9, 11, 13, 15, 17, 19]),
+                                        'min_samples_split': array([ 2,  4,  6,  8, 10, 12, 14, 16, 18]),
+                                        'n_estimators': array([10, 20, 30, 40, 50, 60, 70, 80, 90])},
+                   pre_dispatch='2*n_jobs', random_state=None, refit=True,
+                   return_train_score=False, scoring=None, verbose=True)
+
+# Find the best model hyperparameters
+rs_model.best_params_
+{'n_estimators': 90,
+ 'min_samples_split': 16,
+ 'min_samples_leaf': 11,
+ 'max_samples': 10000,
+ 'max_features': 'auto',
+ 'max_depth': 10}
+
+# Evaluate the RandomizedSearch model
+show_scores(rs_model)
+{'Training MAE': 6633.714300615716,
+ 'Valid MAE': 8074.634589086979,
+ 'Training RMSLE': 0.2967133662928448,
+ 'Valid RMSLE': 0.32142476459239144,
+ 'Training R^2': 0.807156908286598,
+ 'Valid R^2': 0.7827628271827518}
+
+# Train a model with the best hyperparameters
+# Note: These were found after 100 iterations of RandomizedSearchCV.
+
+%%time
+
+# Most ideal hyperparamters
+ideal_model = RandomForestRegressor(n_estimators=40,
+                                    min_samples_leaf=1,
+                                    min_samples_split=14,
+                                    max_features=0.5,
+                                    n_jobs=-1,
+                                    max_samples=None,
+                                    random_state=42) # random state so our results are reproducible
+
+# Fit the ideal model
+
+ideal_model.fit(X_train, y_train)
+CPU times: user 3min 50s, sys: 2.22 s, total: 3min 52s
+Wall time: 1min 14s
+RandomForestRegressor(bootstrap=True, ccp_alpha=0.0, criterion='mse',
+                      max_depth=None, max_features=0.5, max_leaf_nodes=None,
+                      max_samples=None, min_impurity_decrease=0.0,
+                      min_impurity_split=None, min_samples_leaf=1,
+                      min_samples_split=14, min_weight_fraction_leaf=0.0,
+                      n_estimators=40, n_jobs=-1, oob_score=False,
+                      random_state=None, verbose=0, warm_start=False)
+
+# Scores for ideal_model (trained on all the data)
+
+show_scores(ideal_model)
+{'Training MAE': 2952.0893487566345,
+ 'Valid MAE': 5959.9235776482565,
+ 'Training RMSLE': 0.14457060318530182,
+ 'Valid RMSLE': 0.2465443247528795,
+ 'Training R^2': 0.9589437998919624,
+ 'Valid R^2': 0.8817886038953688}
+
+# Scores on rs_model (only trained on ~10,000 examples)
+
+show_scores(rs_model)
+{'Training MAE': 6633.714300615714,
+ 'Valid MAE': 8074.634589086979,
+ 'Training RMSLE': 0.2967133662928448,
+ 'Valid RMSLE': 0.32142476459239144,
+ 'Training R^2': 0.807156908286598,
+ 'Valid R^2': 0.7827628271827518}
+
+# Make predictions on test data
+# Import the test data
+df_test = pd.read_csv("data/bluebook-for-bulldozers/Test.csv",
+                      low_memory=False,
+                      parse_dates=["saledate"])
+
+df_test.head()
+
+SalesID	MachineID	ModelID	datasource	auctioneerID	YearMade	MachineHoursCurrentMeter	UsageBand	saledate	fiModelDesc	...	Undercarriage_Pad_Width	Stick_Length	Thumb	Pattern_Changer	Grouser_Type	Backhoe_Mounting	Blade_Type	Travel_Controls	Differential_Type	Steering_Controls
+0	1227829	1006309	3168	121	3	1999	3688.0	Low	2012-05-03	580G	...	NaN	NaN	NaN	NaN	NaN	NaN	NaN	NaN	NaN	NaN
+1	1227844	1022817	7271	121	3	1000	28555.0	High	2012-05-10	936	...	NaN	NaN	NaN	NaN	NaN	NaN	NaN	NaN	Standard	Conventional
+2	1227847	1031560	22805	121	3	2004	6038.0	Medium	2012-05-10	EC210BLC	...	None or Unspecified	9' 6"	Manual	None or Unspecified	Double	NaN	NaN	NaN	NaN	NaN
+3	1227848	56204	1269	121	3	2006	8940.0	High	2012-05-10	330CL	...	None or Unspecified	None or Unspecified	Manual	Yes	Triple	NaN	NaN	NaN	NaN	NaN
+4	1227863	1053887	22312	121	3	2005	2286.0	Low	2012-05-10	650K	...	NaN	NaN	NaN	NaN	NaN	None or Unspecified	PAT	None or Unspecified	NaN	NaN
+5 rows × 52 columns
+
+# Make predictions on the test dataset
+test_preds = ideal_model.predict(df_test)
+
+def preprocess_data(df):
+    """
+    Performs transformations on df and returns transformed df.
+    """
+    df["saleYear"] = df.saledate.dt.year
+    df["saleMonth"] = df.saledate.dt.month
+    df["saleDay"] = df.saledate.dt.day
+    df["saleDayOfWeek"] = df.saledate.dt.dayofweek
+    df["saleDayOfYear"] = df.saledate.dt.dayofyear
+    
+    df.drop("saledate", axis=1, inplace=True)
+    
+    # Fill the numeric rows with median
+    for label, content in df.items():
+        if pd.api.types.is_numeric_dtype(content):
+            if pd.isnull(content).sum():
+                # Add a binary column which tells us if the data was missing or not
+                df[label+"_is_missing"] = pd.isnull(content)
+                # Fill missing numeric values with median
+                df[label] = content.fillna(content.median())
+    
+        # Filled categorical missing data and turn categories into numbers
+        if not pd.api.types.is_numeric_dtype(content):
+            df[label+"_is_missing"] = pd.isnull(content)
+            # We add +1 to the category code because pandas encodes missing categories as -1
+            df[label] = pd.Categorical(content).codes+1
+    
+    return df
+# Process the test data 
+
+df_test = preprocess_data(df_test)
+df_test.head()
+SalesID	MachineID	ModelID	datasource	auctioneerID	YearMade	MachineHoursCurrentMeter	UsageBand	fiModelDesc	fiBaseModel	...	Undercarriage_Pad_Width_is_missing	Stick_Length_is_missing	Thumb_is_missing	Pattern_Changer_is_missing	Grouser_Type_is_missing	Backhoe_Mounting_is_missing	Blade_Type_is_missing	Travel_Controls_is_missing	Differential_Type_is_missing	Steering_Controls_is_missing
+0	1227829	1006309	3168	121	3	1999	3688.0	2	499	180	...	True	True	True	True	True	True	True	True	True	True
+1	1227844	1022817	7271	121	3	1000	28555.0	1	831	292	...	True	True	True	True	True	True	True	True	False	False
+2	1227847	1031560	22805	121	3	2004	6038.0	3	1177	404	...	False	False	False	False	False	True	True	True	True	True
+3	1227848	56204	1269	121	3	2006	8940.0	1	287	113	...	False	False	False	False	False	True	True	True	True	True
+4	1227863	1053887	22312	121	3	2005	2286.0	2	566	196	...	True	True	True	True	True	False	False	False	True	True
+5 rows × 101 columns
+
+# Make predictions on updated test data
+test_preds = ideal_model.predict(df_test)
+
+X_train.head()
+SalesID	MachineID	ModelID	datasource	auctioneerID	YearMade	MachineHoursCurrentMeter	UsageBand	fiModelDesc	fiBaseModel	...	Undercarriage_Pad_Width_is_missing	Stick_Length_is_missing	Thumb_is_missing	Pattern_Changer_is_missing	Grouser_Type_is_missing	Backhoe_Mounting_is_missing	Blade_Type_is_missing	Travel_Controls_is_missing	Differential_Type_is_missing	Steering_Controls_is_missing
+0	1646770	1126363	8434	132	18.0	1974	0.0	0	4593	1744	...	True	True	True	True	True	False	False	False	True	True
+1	1821514	1194089	10150	132	99.0	1980	0.0	0	1820	559	...	True	True	True	True	True	True	True	True	False	False
+2	1505138	1473654	4139	132	99.0	1978	0.0	0	2348	713	...	True	True	True	True	True	False	False	False	True	True
+3	1671174	1327630	8591	132	99.0	1980	0.0	0	1819	558	...	True	True	True	True	True	True	True	True	False	False
+4	1329056	1336053	4089	132	99.0	1984	0.0	0	2119	683	...	True	True	True	True	True	False	False	False	True	True
+5 rows × 102 columns
+
+# We can find how the columns differ using sets
+set(X_train.columns) - set(df_test.columns)
+{'auctioneerID_is_missing'}
+
+# Manually adjust df_test to have auctioneerID_is_missing column
+df_test["auctioneerID_is_missing"] = False
+df_test.head()
+SalesID	MachineID	ModelID	datasource	auctioneerID	YearMade	MachineHoursCurrentMeter	UsageBand	fiModelDesc	fiBaseModel	...	Stick_Length_is_missing	Thumb_is_missing	Pattern_Changer_is_missing	Grouser_Type_is_missing	Backhoe_Mounting_is_missing	Blade_Type_is_missing	Travel_Controls_is_missing	Differential_Type_is_missing	Steering_Controls_is_missing	auctioneerID_is_missing
+0	1227829	1006309	3168	121	3	1999	3688.0	2	499	180	...	True	True	True	True	True	True	True	True	True	False
+1	1227844	1022817	7271	121	3	1000	28555.0	1	831	292	...	True	True	True	True	True	True	True	False	False	False
+2	1227847	1031560	22805	121	3	2004	6038.0	3	1177	404	...	False	False	False	False	True	True	True	True	True	False
+3	1227848	56204	1269	121	3	2006	8940.0	1	287	113	...	False	False	False	False	True	True	True	True	True	False
+4	1227863	1053887	22312	121	3	2005	2286.0	2	566	196	...	True	True	True	True	False	False	False	True	True	False
+5 rows × 102 columns
+
+#Finally now our test dataframe has the same features as our training dataframe, we can make predictions!
+# Make predictions on the test data
+test_preds = ideal_model.predict(df_test)
+test_preds
+array([20531.51652783, 22264.04045921, 51282.34671809, ...,
+       18321.65196727, 17611.80521904, 29852.76494909])
+
+
+# Format predictions into the same format Kaggle is after
+df_preds = pd.DataFrame()
+df_preds["SalesID"] = df_test["SalesID"]
+df_preds["SalesPrice"] = test_preds
+df_preds
+SalesID	SalesPrice
+0	1227829	20531.516528
+1	1227844	22264.040459
+2	1227847	51282.346718
+3	1227848	65866.631916
+4	1227863	43831.973800
+...	...	...
+12452	6643171	41054.516218
+12453	6643173	12797.929101
+12454	6643184	18321.651967
+12455	6643186	17611.805219
+12456	6643196	29852.764949
+12457 rows × 2 columns
+
+# Export prediction data
+df_preds.to_csv("data/bluebook-for-bulldozers/test_predictions.csv", index=False)
+Feature Importance
+Feature importance seeks to figure out which different attributes of the data were most importance when it comes to predicting the target variable (SalePrice).
+
+# Find feature importance of our best model
+ideal_model.feature_importances_
+array([3.30079727e-02, 1.52715011e-02, 4.44266419e-02, 1.66930350e-03,
+       3.40827463e-03, 1.98032942e-01, 3.06598876e-03, 9.89211966e-04,
+       4.26254216e-02, 4.39819885e-02, 6.57834011e-02, 4.87982047e-03,
+       1.77023545e-02, 1.51661827e-01, 4.72463146e-02, 5.98046758e-03,
+       1.92525933e-03, 1.38661459e-03, 3.31970958e-03, 7.40841782e-02,
+       3.85573293e-04, 3.47964715e-05, 1.05285412e-03, 1.94379916e-04,
+       1.12356708e-03, 2.92594598e-05, 1.66787697e-04, 1.07571980e-02,
+       2.34012553e-03, 1.47095797e-04, 4.61987256e-03, 2.07291008e-03,
+       3.22984240e-03, 2.47485510e-04, 3.24066792e-04, 6.08422262e-03,
+       8.77981683e-04, 1.24406930e-02, 1.68140425e-03, 3.23016003e-06,
+       1.35047921e-03, 1.18107964e-03, 3.00274447e-03, 5.52631517e-04,
+       8.46720785e-04, 4.39072244e-04, 2.83743193e-04, 2.17336991e-03,
+       8.57391648e-04, 2.31221822e-04, 1.09379516e-03, 7.44377497e-02,
+       3.84153698e-03, 5.66918811e-03, 2.92749626e-03, 9.95679015e-03,
+       2.54256517e-04, 1.66207015e-03, 3.66281562e-04, 0.00000000e+00,
+       0.00000000e+00, 2.46983286e-03, 1.31033071e-03, 7.35404634e-03,
+       2.54729200e-02, 0.00000000e+00, 0.00000000e+00, 0.00000000e+00,
+       0.00000000e+00, 5.07599928e-04, 5.17166856e-06, 1.55046159e-04,
+       4.04248390e-06, 1.82564239e-04, 7.04749953e-06, 2.26405779e-04,
+       2.80231953e-06, 4.96586945e-03, 4.36647493e-03, 1.25190049e-04,
+       2.08185585e-03, 1.90201374e-03, 1.91394239e-03, 1.88473959e-03,
+       4.41163120e-04, 1.86932089e-04, 2.77901204e-03, 3.34514077e-04,
+       1.16174523e-02, 6.55540774e-03, 2.28212683e-03, 3.95095715e-05,
+       6.65502739e-05, 9.30684515e-05, 1.81097276e-04, 6.20632277e-05,
+       1.14080516e-04, 2.69076281e-04, 1.23255049e-04, 1.58861041e-04,
+       2.96437296e-04, 7.13380586e-05])
+
+# Helper function for plotting feature importance
+def plot_features(columns, importances, n=20):
+    df = (pd.DataFrame({"features": columns,
+                        "feature_importances": importances})
+          .sort_values("feature_importances", ascending=False)
+          .reset_index(drop=True))
+    
+    # Plot the dataframe
+    fig, ax = plt.subplots()
+    ax.barh(df["features"][:n], df["feature_importances"][:20])
+    ax.set_ylabel("Features")
+    ax.set_xlabel("Feature importance")
+    ax.invert_yaxis()
+plot_features(X_train.columns, ideal_model.feature_importances_)
+
+df["Enclosure"].value_counts()
+OROPS                  177971
+EROPS                  141769
+EROPS w AC              92601
+EROPS AC                   18
+NO ROPS                     3
+None or Unspecified         2
+Name: Enclosure, dtype: int64
