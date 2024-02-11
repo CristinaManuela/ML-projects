@@ -743,4 +743,1925 @@ Single label tensor: [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0
  0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
 Single sample class name: schipperke
 
+plt.imshow(image_batch[0].numpy().astype("uint8")) # convert to uint8 to avoid matplotlib colour range issues
+plt.title(dog_names[tf.argmax(label_batch[0])])
+plt.axis("off");
+
+
+# Create multiple subplots
+fig, axes = plt.subplots(nrows=2, ncols=5, figsize=(20, 10))
+
+# Iterate through a single batch and plot images
+for images, labels in train_ds.take(count=1): # note: because our training data is shuffled, each "take" will be different
+  for i, ax in enumerate(axes.flat):
+    ax.imshow(images[i].numpy().astype("uint8"))
+    ax.set_title(dog_names[tf.argmax(labels[i])])
+    ax.axis("off")
+
+
+# Get the first 5 file paths of the training dataset
+train_ds.file_paths[:5]
+['images_split/train/boston_bull/n02096585_1753.jpg',
+ 'images_split/train/kerry_blue_terrier/n02093859_855.jpg',
+ 'images_split/train/border_terrier/n02093754_2281.jpg',
+ 'images_split/train/rottweiler/n02106550_11823.jpg',
+ 'images_split/train/airedale/n02096051_5884.jpg']
+
+# Get the class names TensorFlow has read from the target directory
+class_names = train_ds.class_names
+class_names[:5]
+['affenpinscher',
+ 'afghan_hound',
+ 'african_hunting_dog',
+ 'airedale',
+ 'american_staffordshire_terrier']
+
+assert set(train_10_percent_ds.class_names) == set(train_ds.class_names) == set(test_ds.class_names)
+
+AUTOTUNE = tf.data.AUTOTUNE # let TensorFlow find the best values to use automatically
+
+# Shuffle and optimize performance on training datasets
+# Note: these methods can be chained together and will have the same effect as calling them individually
+train_10_percent_ds = train_10_percent_ds.cache().shuffle(buffer_size=10*BATCH_SIZE).prefetch(buffer_size=AUTOTUNE)
+train_ds = train_ds.cache().shuffle(buffer_size=100*BATCH_SIZE).prefetch(buffer_size=AUTOTUNE)
+
+# Don't need to shuffle test datasets (for easier evaluation)
+test_ds = test_ds.cache().prefetch(buffer_size=AUTOTUNE)
+
+# Create the input shape to our model
+INPUT_SHAPE = (*IMG_SIZE, 3)
+
+base_model = tf.keras.applications.efficientnet_v2.EfficientNetV2B0(
+    include_top=True, # do want to include the top layer? (ImageNet has 1000 classes, so the top layer is formulated for this, we want to create our own top layer)
+    include_preprocessing=True, # do we want the network to preprocess our data into the right format for us? (yes)
+    weights="imagenet", # do we want the network to come with pretrained weights? (yes)
+    input_shape=INPUT_SHAPE # what is the input shape of our data we're going to pass to the network? (224, 224, 3) -> (height, width, colour_channels)
+)
+Downloading data from https://storage.googleapis.com/tensorflow/keras-applications/efficientnet_v2/efficientnetv2-b0.h5
+29403144/29403144 [==============================] - 1s 0us/step
+
+base_model.summary()
+Model: "efficientnetv2-b0"
+__________________________________________________________________________________________________
+ Layer (type)                Output Shape                 Param #   Connected to                  
+==================================================================================================
+ input_1 (InputLayer)        [(None, 224, 224, 3)]        0         []                            
+                                                                                                  
+ rescaling (Rescaling)       (None, 224, 224, 3)          0         ['input_1[0][0]']             
+                                                                                                  
+ normalization (Normalizati  (None, 224, 224, 3)          0         ['rescaling[0][0]']           
+ on)                                                                                              
+                                                                                                  
+ stem_conv (Conv2D)          (None, 112, 112, 32)         864       ['normalization[0][0]']       
+                                                                                                  
+ stem_bn (BatchNormalizatio  (None, 112, 112, 32)         128       ['stem_conv[0][0]']           
+ n)                                                                                               
+                                                                                                  
+ stem_activation (Activatio  (None, 112, 112, 32)         0         ['stem_bn[0][0]']             
+ n)                                                                                               
+                                                                                                  
+ block1a_project_conv (Conv  (None, 112, 112, 16)         4608      ['stem_activation[0][0]']     
+ 2D)                                                                                              
+                                                                                                  
+ block1a_project_bn (BatchN  (None, 112, 112, 16)         64        ['block1a_project_conv[0][0]']
+ ormalization)                                                                                    
+                                                                                                  
+ block1a_project_activation  (None, 112, 112, 16)         0         ['block1a_project_bn[0][0]']  
+  (Activation)                                                                                    
+                                                                                                  
+ block2a_expand_conv (Conv2  (None, 56, 56, 64)           9216      ['block1a_project_activation[0
+ D)                                                                 ][0]']                        
+                                                                                                  
+ block2a_expand_bn (BatchNo  (None, 56, 56, 64)           256       ['block2a_expand_conv[0][0]'] 
+ rmalization)                                                                                     
+                                                                                                  
+ block2a_expand_activation   (None, 56, 56, 64)           0         ['block2a_expand_bn[0][0]']   
+ (Activation)                                                                                     
+                                                                                                  
+ block2a_project_conv (Conv  (None, 56, 56, 32)           2048      ['block2a_expand_activation[0]
+ 2D)                                                                [0]']                         
+                                                                                                  
+ block2a_project_bn (BatchN  (None, 56, 56, 32)           128       ['block2a_project_conv[0][0]']
+ ormalization)                                                                                    
+                                                                                                  
+ block2b_expand_conv (Conv2  (None, 56, 56, 128)          36864     ['block2a_project_bn[0][0]']  
+ D)                                                                                               
+                                                                                                  
+ block2b_expand_bn (BatchNo  (None, 56, 56, 128)          512       ['block2b_expand_conv[0][0]'] 
+ rmalization)                                                                                     
+                                                                                                  
+ block2b_expand_activation   (None, 56, 56, 128)          0         ['block2b_expand_bn[0][0]']   
+ (Activation)                                                                                     
+                                                                                                  
+ block2b_project_conv (Conv  (None, 56, 56, 32)           4096      ['block2b_expand_activation[0]
+ 2D)                                                                [0]']                         
+                                                                                                  
+ block2b_project_bn (BatchN  (None, 56, 56, 32)           128       ['block2b_project_conv[0][0]']
+ ormalization)                                                                                    
+                                                                                                  
+ block2b_drop (Dropout)      (None, 56, 56, 32)           0         ['block2b_project_bn[0][0]']  
+                                                                                                  
+ block2b_add (Add)           (None, 56, 56, 32)           0         ['block2b_drop[0][0]',        
+                                                                     'block2a_project_bn[0][0]']  
+                                                                                                  
+ block3a_expand_conv (Conv2  (None, 28, 28, 128)          36864     ['block2b_add[0][0]']         
+ D)                                                                                               
+                                                                                                  
+ block3a_expand_bn (BatchNo  (None, 28, 28, 128)          512       ['block3a_expand_conv[0][0]'] 
+ rmalization)                                                                                     
+                                                                                                  
+ block3a_expand_activation   (None, 28, 28, 128)          0         ['block3a_expand_bn[0][0]']   
+ (Activation)                                                                                     
+                                                                                                  
+ block3a_project_conv (Conv  (None, 28, 28, 48)           6144      ['block3a_expand_activation[0]
+ 2D)                                                                [0]']                         
+                                                                                                  
+ block3a_project_bn (BatchN  (None, 28, 28, 48)           192       ['block3a_project_conv[0][0]']
+ ormalization)                                                                                    
+                                                                                                  
+ block3b_expand_conv (Conv2  (None, 28, 28, 192)          82944     ['block3a_project_bn[0][0]']  
+ D)                                                                                               
+                                                                                                  
+ block3b_expand_bn (BatchNo  (None, 28, 28, 192)          768       ['block3b_expand_conv[0][0]'] 
+ rmalization)                                                                                     
+                                                                                                  
+ block3b_expand_activation   (None, 28, 28, 192)          0         ['block3b_expand_bn[0][0]']   
+ (Activation)                                                                                     
+                                                                                                  
+ block3b_project_conv (Conv  (None, 28, 28, 48)           9216      ['block3b_expand_activation[0]
+ 2D)                                                                [0]']                         
+                                                                                                  
+ block3b_project_bn (BatchN  (None, 28, 28, 48)           192       ['block3b_project_conv[0][0]']
+ ormalization)                                                                                    
+                                                                                                  
+ block3b_drop (Dropout)      (None, 28, 28, 48)           0         ['block3b_project_bn[0][0]']  
+                                                                                                  
+ block3b_add (Add)           (None, 28, 28, 48)           0         ['block3b_drop[0][0]',        
+                                                                     'block3a_project_bn[0][0]']  
+                                                                                                  
+ block4a_expand_conv (Conv2  (None, 28, 28, 192)          9216      ['block3b_add[0][0]']         
+ D)                                                                                               
+                                                                                                  
+ block4a_expand_bn (BatchNo  (None, 28, 28, 192)          768       ['block4a_expand_conv[0][0]'] 
+ rmalization)                                                                                     
+                                                                                                  
+ block4a_expand_activation   (None, 28, 28, 192)          0         ['block4a_expand_bn[0][0]']   
+ (Activation)                                                                                     
+                                                                                                  
+ block4a_dwconv2 (Depthwise  (None, 14, 14, 192)          1728      ['block4a_expand_activation[0]
+ Conv2D)                                                            [0]']                         
+                                                                                                  
+ block4a_bn (BatchNormaliza  (None, 14, 14, 192)          768       ['block4a_dwconv2[0][0]']     
+ tion)                                                                                            
+                                                                                                  
+ block4a_activation (Activa  (None, 14, 14, 192)          0         ['block4a_bn[0][0]']          
+ tion)                                                                                            
+                                                                                                  
+ block4a_se_squeeze (Global  (None, 192)                  0         ['block4a_activation[0][0]']  
+ AveragePooling2D)                                                                                
+                                                                                                  
+ block4a_se_reshape (Reshap  (None, 1, 1, 192)            0         ['block4a_se_squeeze[0][0]']  
+ e)                                                                                               
+                                                                                                  
+ block4a_se_reduce (Conv2D)  (None, 1, 1, 12)             2316      ['block4a_se_reshape[0][0]']  
+                                                                                                  
+ block4a_se_expand (Conv2D)  (None, 1, 1, 192)            2496      ['block4a_se_reduce[0][0]']   
+                                                                                                  
+ block4a_se_excite (Multipl  (None, 14, 14, 192)          0         ['block4a_activation[0][0]',  
+ y)                                                                  'block4a_se_expand[0][0]']   
+                                                                                                  
+ block4a_project_conv (Conv  (None, 14, 14, 96)           18432     ['block4a_se_excite[0][0]']   
+ 2D)                                                                                              
+                                                                                                  
+ block4a_project_bn (BatchN  (None, 14, 14, 96)           384       ['block4a_project_conv[0][0]']
+ ormalization)                                                                                    
+                                                                                                  
+ block4b_expand_conv (Conv2  (None, 14, 14, 384)          36864     ['block4a_project_bn[0][0]']  
+ D)                                                                                               
+                                                                                                  
+ block4b_expand_bn (BatchNo  (None, 14, 14, 384)          1536      ['block4b_expand_conv[0][0]'] 
+ rmalization)                                                                                     
+                                                                                                  
+ block4b_expand_activation   (None, 14, 14, 384)          0         ['block4b_expand_bn[0][0]']   
+ (Activation)                                                                                     
+                                                                                                  
+ block4b_dwconv2 (Depthwise  (None, 14, 14, 384)          3456      ['block4b_expand_activation[0]
+ Conv2D)                                                            [0]']                         
+                                                                                                  
+ block4b_bn (BatchNormaliza  (None, 14, 14, 384)          1536      ['block4b_dwconv2[0][0]']     
+ tion)                                                                                            
+                                                                                                  
+ block4b_activation (Activa  (None, 14, 14, 384)          0         ['block4b_bn[0][0]']          
+ tion)                                                                                            
+                                                                                                  
+ block4b_se_squeeze (Global  (None, 384)                  0         ['block4b_activation[0][0]']  
+ AveragePooling2D)                                                                                
+                                                                                                  
+ block4b_se_reshape (Reshap  (None, 1, 1, 384)            0         ['block4b_se_squeeze[0][0]']  
+ e)                                                                                               
+                                                                                                  
+ block4b_se_reduce (Conv2D)  (None, 1, 1, 24)             9240      ['block4b_se_reshape[0][0]']  
+                                                                                                  
+ block4b_se_expand (Conv2D)  (None, 1, 1, 384)            9600      ['block4b_se_reduce[0][0]']   
+                                                                                                  
+ block4b_se_excite (Multipl  (None, 14, 14, 384)          0         ['block4b_activation[0][0]',  
+ y)                                                                  'block4b_se_expand[0][0]']   
+                                                                                                  
+ block4b_project_conv (Conv  (None, 14, 14, 96)           36864     ['block4b_se_excite[0][0]']   
+ 2D)                                                                                              
+                                                                                                  
+ block4b_project_bn (BatchN  (None, 14, 14, 96)           384       ['block4b_project_conv[0][0]']
+ ormalization)                                                                                    
+                                                                                                  
+ block4b_drop (Dropout)      (None, 14, 14, 96)           0         ['block4b_project_bn[0][0]']  
+                                                                                                  
+ block4b_add (Add)           (None, 14, 14, 96)           0         ['block4b_drop[0][0]',        
+                                                                     'block4a_project_bn[0][0]']  
+                                                                                                  
+ block4c_expand_conv (Conv2  (None, 14, 14, 384)          36864     ['block4b_add[0][0]']         
+ D)                                                                                               
+                                                                                                  
+ block4c_expand_bn (BatchNo  (None, 14, 14, 384)          1536      ['block4c_expand_conv[0][0]'] 
+ rmalization)                                                                                     
+                                                                                                  
+ block4c_expand_activation   (None, 14, 14, 384)          0         ['block4c_expand_bn[0][0]']   
+ (Activation)                                                                                     
+                                                                                                  
+ block4c_dwconv2 (Depthwise  (None, 14, 14, 384)          3456      ['block4c_expand_activation[0]
+ Conv2D)                                                            [0]']                         
+                                                                                                  
+ block4c_bn (BatchNormaliza  (None, 14, 14, 384)          1536      ['block4c_dwconv2[0][0]']     
+ tion)                                                                                            
+                                                                                                  
+ block4c_activation (Activa  (None, 14, 14, 384)          0         ['block4c_bn[0][0]']          
+ tion)                                                                                            
+                                                                                                  
+ block4c_se_squeeze (Global  (None, 384)                  0         ['block4c_activation[0][0]']  
+ AveragePooling2D)                                                                                
+                                                                                                  
+ block4c_se_reshape (Reshap  (None, 1, 1, 384)            0         ['block4c_se_squeeze[0][0]']  
+ e)                                                                                               
+                                                                                                  
+ block4c_se_reduce (Conv2D)  (None, 1, 1, 24)             9240      ['block4c_se_reshape[0][0]']  
+                                                                                                  
+ block4c_se_expand (Conv2D)  (None, 1, 1, 384)            9600      ['block4c_se_reduce[0][0]']   
+                                                                                                  
+ block4c_se_excite (Multipl  (None, 14, 14, 384)          0         ['block4c_activation[0][0]',  
+ y)                                                                  'block4c_se_expand[0][0]']   
+                                                                                                  
+ block4c_project_conv (Conv  (None, 14, 14, 96)           36864     ['block4c_se_excite[0][0]']   
+ 2D)                                                                                              
+                                                                                                  
+ block4c_project_bn (BatchN  (None, 14, 14, 96)           384       ['block4c_project_conv[0][0]']
+ ormalization)                                                                                    
+                                                                                                  
+ block4c_drop (Dropout)      (None, 14, 14, 96)           0         ['block4c_project_bn[0][0]']  
+                                                                                                  
+ block4c_add (Add)           (None, 14, 14, 96)           0         ['block4c_drop[0][0]',        
+                                                                     'block4b_add[0][0]']         
+                                                                                                  
+ block5a_expand_conv (Conv2  (None, 14, 14, 576)          55296     ['block4c_add[0][0]']         
+ D)                                                                                               
+                                                                                                  
+ block5a_expand_bn (BatchNo  (None, 14, 14, 576)          2304      ['block5a_expand_conv[0][0]'] 
+ rmalization)                                                                                     
+                                                                                                  
+ block5a_expand_activation   (None, 14, 14, 576)          0         ['block5a_expand_bn[0][0]']   
+ (Activation)                                                                                     
+                                                                                                  
+ block5a_dwconv2 (Depthwise  (None, 14, 14, 576)          5184      ['block5a_expand_activation[0]
+ Conv2D)                                                            [0]']                         
+                                                                                                  
+ block5a_bn (BatchNormaliza  (None, 14, 14, 576)          2304      ['block5a_dwconv2[0][0]']     
+ tion)                                                                                            
+                                                                                                  
+ block5a_activation (Activa  (None, 14, 14, 576)          0         ['block5a_bn[0][0]']          
+ tion)                                                                                            
+                                                                                                  
+ block5a_se_squeeze (Global  (None, 576)                  0         ['block5a_activation[0][0]']  
+ AveragePooling2D)                                                                                
+                                                                                                  
+ block5a_se_reshape (Reshap  (None, 1, 1, 576)            0         ['block5a_se_squeeze[0][0]']  
+ e)                                                                                               
+                                                                                                  
+ block5a_se_reduce (Conv2D)  (None, 1, 1, 24)             13848     ['block5a_se_reshape[0][0]']  
+                                                                                                  
+ block5a_se_expand (Conv2D)  (None, 1, 1, 576)            14400     ['block5a_se_reduce[0][0]']   
+                                                                                                  
+ block5a_se_excite (Multipl  (None, 14, 14, 576)          0         ['block5a_activation[0][0]',  
+ y)                                                                  'block5a_se_expand[0][0]']   
+                                                                                                  
+ block5a_project_conv (Conv  (None, 14, 14, 112)          64512     ['block5a_se_excite[0][0]']   
+ 2D)                                                                                              
+                                                                                                  
+ block5a_project_bn (BatchN  (None, 14, 14, 112)          448       ['block5a_project_conv[0][0]']
+ ormalization)                                                                                    
+                                                                                                  
+ block5b_expand_conv (Conv2  (None, 14, 14, 672)          75264     ['block5a_project_bn[0][0]']  
+ D)                                                                                               
+                                                                                                  
+ block5b_expand_bn (BatchNo  (None, 14, 14, 672)          2688      ['block5b_expand_conv[0][0]'] 
+ rmalization)                                                                                     
+                                                                                                  
+ block5b_expand_activation   (None, 14, 14, 672)          0         ['block5b_expand_bn[0][0]']   
+ (Activation)                                                                                     
+                                                                                                  
+ block5b_dwconv2 (Depthwise  (None, 14, 14, 672)          6048      ['block5b_expand_activation[0]
+ Conv2D)                                                            [0]']                         
+                                                                                                  
+ block5b_bn (BatchNormaliza  (None, 14, 14, 672)          2688      ['block5b_dwconv2[0][0]']     
+ tion)                                                                                            
+                                                                                                  
+ block5b_activation (Activa  (None, 14, 14, 672)          0         ['block5b_bn[0][0]']          
+ tion)                                                                                            
+                                                                                                  
+ block5b_se_squeeze (Global  (None, 672)                  0         ['block5b_activation[0][0]']  
+ AveragePooling2D)                                                                                
+                                                                                                  
+ block5b_se_reshape (Reshap  (None, 1, 1, 672)            0         ['block5b_se_squeeze[0][0]']  
+ e)                                                                                               
+                                                                                                  
+ block5b_se_reduce (Conv2D)  (None, 1, 1, 28)             18844     ['block5b_se_reshape[0][0]']  
+                                                                                                  
+ block5b_se_expand (Conv2D)  (None, 1, 1, 672)            19488     ['block5b_se_reduce[0][0]']   
+                                                                                                  
+ block5b_se_excite (Multipl  (None, 14, 14, 672)          0         ['block5b_activation[0][0]',  
+ y)                                                                  'block5b_se_expand[0][0]']   
+                                                                                                  
+ block5b_project_conv (Conv  (None, 14, 14, 112)          75264     ['block5b_se_excite[0][0]']   
+ 2D)                                                                                              
+                                                                                                  
+ block5b_project_bn (BatchN  (None, 14, 14, 112)          448       ['block5b_project_conv[0][0]']
+ ormalization)                                                                                    
+                                                                                                  
+ block5b_drop (Dropout)      (None, 14, 14, 112)          0         ['block5b_project_bn[0][0]']  
+                                                                                                  
+ block5b_add (Add)           (None, 14, 14, 112)          0         ['block5b_drop[0][0]',        
+                                                                     'block5a_project_bn[0][0]']  
+                                                                                                  
+ block5c_expand_conv (Conv2  (None, 14, 14, 672)          75264     ['block5b_add[0][0]']         
+ D)                                                                                               
+                                                                                                  
+ block5c_expand_bn (BatchNo  (None, 14, 14, 672)          2688      ['block5c_expand_conv[0][0]'] 
+ rmalization)                                                                                     
+                                                                                                  
+ block5c_expand_activation   (None, 14, 14, 672)          0         ['block5c_expand_bn[0][0]']   
+ (Activation)                                                                                     
+                                                                                                  
+ block5c_dwconv2 (Depthwise  (None, 14, 14, 672)          6048      ['block5c_expand_activation[0]
+ Conv2D)                                                            [0]']                         
+                                                                                                  
+ block5c_bn (BatchNormaliza  (None, 14, 14, 672)          2688      ['block5c_dwconv2[0][0]']     
+ tion)                                                                                            
+                                                                                                  
+ block5c_activation (Activa  (None, 14, 14, 672)          0         ['block5c_bn[0][0]']          
+ tion)                                                                                            
+                                                                                                  
+ block5c_se_squeeze (Global  (None, 672)                  0         ['block5c_activation[0][0]']  
+ AveragePooling2D)                                                                                
+                                                                                                  
+ block5c_se_reshape (Reshap  (None, 1, 1, 672)            0         ['block5c_se_squeeze[0][0]']  
+ e)                                                                                               
+                                                                                                  
+ block5c_se_reduce (Conv2D)  (None, 1, 1, 28)             18844     ['block5c_se_reshape[0][0]']  
+                                                                                                  
+ block5c_se_expand (Conv2D)  (None, 1, 1, 672)            19488     ['block5c_se_reduce[0][0]']   
+                                                                                                  
+ block5c_se_excite (Multipl  (None, 14, 14, 672)          0         ['block5c_activation[0][0]',  
+ y)                                                                  'block5c_se_expand[0][0]']   
+                                                                                                  
+ block5c_project_conv (Conv  (None, 14, 14, 112)          75264     ['block5c_se_excite[0][0]']   
+ 2D)                                                                                              
+                                                                                                  
+ block5c_project_bn (BatchN  (None, 14, 14, 112)          448       ['block5c_project_conv[0][0]']
+ ormalization)                                                                                    
+                                                                                                  
+ block5c_drop (Dropout)      (None, 14, 14, 112)          0         ['block5c_project_bn[0][0]']  
+                                                                                                  
+ block5c_add (Add)           (None, 14, 14, 112)          0         ['block5c_drop[0][0]',        
+                                                                     'block5b_add[0][0]']         
+                                                                                                  
+ block5d_expand_conv (Conv2  (None, 14, 14, 672)          75264     ['block5c_add[0][0]']         
+ D)                                                                                               
+                                                                                                  
+ block5d_expand_bn (BatchNo  (None, 14, 14, 672)          2688      ['block5d_expand_conv[0][0]'] 
+ rmalization)                                                                                     
+                                                                                                  
+ block5d_expand_activation   (None, 14, 14, 672)          0         ['block5d_expand_bn[0][0]']   
+ (Activation)                                                                                     
+                                                                                                  
+ block5d_dwconv2 (Depthwise  (None, 14, 14, 672)          6048      ['block5d_expand_activation[0]
+ Conv2D)                                                            [0]']                         
+                                                                                                  
+ block5d_bn (BatchNormaliza  (None, 14, 14, 672)          2688      ['block5d_dwconv2[0][0]']     
+ tion)                                                                                            
+                                                                                                  
+ block5d_activation (Activa  (None, 14, 14, 672)          0         ['block5d_bn[0][0]']          
+ tion)                                                                                            
+                                                                                                  
+ block5d_se_squeeze (Global  (None, 672)                  0         ['block5d_activation[0][0]']  
+ AveragePooling2D)                                                                                
+                                                                                                  
+ block5d_se_reshape (Reshap  (None, 1, 1, 672)            0         ['block5d_se_squeeze[0][0]']  
+ e)                                                                                               
+                                                                                                  
+ block5d_se_reduce (Conv2D)  (None, 1, 1, 28)             18844     ['block5d_se_reshape[0][0]']  
+                                                                                                  
+ block5d_se_expand (Conv2D)  (None, 1, 1, 672)            19488     ['block5d_se_reduce[0][0]']   
+                                                                                                  
+ block5d_se_excite (Multipl  (None, 14, 14, 672)          0         ['block5d_activation[0][0]',  
+ y)                                                                  'block5d_se_expand[0][0]']   
+                                                                                                  
+ block5d_project_conv (Conv  (None, 14, 14, 112)          75264     ['block5d_se_excite[0][0]']   
+ 2D)                                                                                              
+                                                                                                  
+ block5d_project_bn (BatchN  (None, 14, 14, 112)          448       ['block5d_project_conv[0][0]']
+ ormalization)                                                                                    
+                                                                                                  
+ block5d_drop (Dropout)      (None, 14, 14, 112)          0         ['block5d_project_bn[0][0]']  
+                                                                                                  
+ block5d_add (Add)           (None, 14, 14, 112)          0         ['block5d_drop[0][0]',        
+                                                                     'block5c_add[0][0]']         
+                                                                                                  
+ block5e_expand_conv (Conv2  (None, 14, 14, 672)          75264     ['block5d_add[0][0]']         
+ D)                                                                                               
+                                                                                                  
+ block5e_expand_bn (BatchNo  (None, 14, 14, 672)          2688      ['block5e_expand_conv[0][0]'] 
+ rmalization)                                                                                     
+                                                                                                  
+ block5e_expand_activation   (None, 14, 14, 672)          0         ['block5e_expand_bn[0][0]']   
+ (Activation)                                                                                     
+                                                                                                  
+ block5e_dwconv2 (Depthwise  (None, 14, 14, 672)          6048      ['block5e_expand_activation[0]
+ Conv2D)                                                            [0]']                         
+                                                                                                  
+ block5e_bn (BatchNormaliza  (None, 14, 14, 672)          2688      ['block5e_dwconv2[0][0]']     
+ tion)                                                                                            
+                                                                                                  
+ block5e_activation (Activa  (None, 14, 14, 672)          0         ['block5e_bn[0][0]']          
+ tion)                                                                                            
+                                                                                                  
+ block5e_se_squeeze (Global  (None, 672)                  0         ['block5e_activation[0][0]']  
+ AveragePooling2D)                                                                                
+                                                                                                  
+ block5e_se_reshape (Reshap  (None, 1, 1, 672)            0         ['block5e_se_squeeze[0][0]']  
+ e)                                                                                               
+                                                                                                  
+ block5e_se_reduce (Conv2D)  (None, 1, 1, 28)             18844     ['block5e_se_reshape[0][0]']  
+                                                                                                  
+ block5e_se_expand (Conv2D)  (None, 1, 1, 672)            19488     ['block5e_se_reduce[0][0]']   
+                                                                                                  
+ block5e_se_excite (Multipl  (None, 14, 14, 672)          0         ['block5e_activation[0][0]',  
+ y)                                                                  'block5e_se_expand[0][0]']   
+                                                                                                  
+ block5e_project_conv (Conv  (None, 14, 14, 112)          75264     ['block5e_se_excite[0][0]']   
+ 2D)                                                                                              
+                                                                                                  
+ block5e_project_bn (BatchN  (None, 14, 14, 112)          448       ['block5e_project_conv[0][0]']
+ ormalization)                                                                                    
+                                                                                                  
+ block5e_drop (Dropout)      (None, 14, 14, 112)          0         ['block5e_project_bn[0][0]']  
+                                                                                                  
+ block5e_add (Add)           (None, 14, 14, 112)          0         ['block5e_drop[0][0]',        
+                                                                     'block5d_add[0][0]']         
+                                                                                                  
+ block6a_expand_conv (Conv2  (None, 14, 14, 672)          75264     ['block5e_add[0][0]']         
+ D)                                                                                               
+                                                                                                  
+ block6a_expand_bn (BatchNo  (None, 14, 14, 672)          2688      ['block6a_expand_conv[0][0]'] 
+ rmalization)                                                                                     
+                                                                                                  
+ block6a_expand_activation   (None, 14, 14, 672)          0         ['block6a_expand_bn[0][0]']   
+ (Activation)                                                                                     
+                                                                                                  
+ block6a_dwconv2 (Depthwise  (None, 7, 7, 672)            6048      ['block6a_expand_activation[0]
+ Conv2D)                                                            [0]']                         
+                                                                                                  
+ block6a_bn (BatchNormaliza  (None, 7, 7, 672)            2688      ['block6a_dwconv2[0][0]']     
+ tion)                                                                                            
+                                                                                                  
+ block6a_activation (Activa  (None, 7, 7, 672)            0         ['block6a_bn[0][0]']          
+ tion)                                                                                            
+                                                                                                  
+ block6a_se_squeeze (Global  (None, 672)                  0         ['block6a_activation[0][0]']  
+ AveragePooling2D)                                                                                
+                                                                                                  
+ block6a_se_reshape (Reshap  (None, 1, 1, 672)            0         ['block6a_se_squeeze[0][0]']  
+ e)                                                                                               
+                                                                                                  
+ block6a_se_reduce (Conv2D)  (None, 1, 1, 28)             18844     ['block6a_se_reshape[0][0]']  
+                                                                                                  
+ block6a_se_expand (Conv2D)  (None, 1, 1, 672)            19488     ['block6a_se_reduce[0][0]']   
+                                                                                                  
+ block6a_se_excite (Multipl  (None, 7, 7, 672)            0         ['block6a_activation[0][0]',  
+ y)                                                                  'block6a_se_expand[0][0]']   
+                                                                                                  
+ block6a_project_conv (Conv  (None, 7, 7, 192)            129024    ['block6a_se_excite[0][0]']   
+ 2D)                                                                                              
+                                                                                                  
+ block6a_project_bn (BatchN  (None, 7, 7, 192)            768       ['block6a_project_conv[0][0]']
+ ormalization)                                                                                    
+                                                                                                  
+ block6b_expand_conv (Conv2  (None, 7, 7, 1152)           221184    ['block6a_project_bn[0][0]']  
+ D)                                                                                               
+                                                                                                  
+ block6b_expand_bn (BatchNo  (None, 7, 7, 1152)           4608      ['block6b_expand_conv[0][0]'] 
+ rmalization)                                                                                     
+                                                                                                  
+ block6b_expand_activation   (None, 7, 7, 1152)           0         ['block6b_expand_bn[0][0]']   
+ (Activation)                                                                                     
+                                                                                                  
+ block6b_dwconv2 (Depthwise  (None, 7, 7, 1152)           10368     ['block6b_expand_activation[0]
+ Conv2D)                                                            [0]']                         
+                                                                                                  
+ block6b_bn (BatchNormaliza  (None, 7, 7, 1152)           4608      ['block6b_dwconv2[0][0]']     
+ tion)                                                                                            
+                                                                                                  
+ block6b_activation (Activa  (None, 7, 7, 1152)           0         ['block6b_bn[0][0]']          
+ tion)                                                                                            
+                                                                                                  
+ block6b_se_squeeze (Global  (None, 1152)                 0         ['block6b_activation[0][0]']  
+ AveragePooling2D)                                                                                
+                                                                                                  
+ block6b_se_reshape (Reshap  (None, 1, 1, 1152)           0         ['block6b_se_squeeze[0][0]']  
+ e)                                                                                               
+                                                                                                  
+ block6b_se_reduce (Conv2D)  (None, 1, 1, 48)             55344     ['block6b_se_reshape[0][0]']  
+                                                                                                  
+ block6b_se_expand (Conv2D)  (None, 1, 1, 1152)           56448     ['block6b_se_reduce[0][0]']   
+                                                                                                  
+ block6b_se_excite (Multipl  (None, 7, 7, 1152)           0         ['block6b_activation[0][0]',  
+ y)                                                                  'block6b_se_expand[0][0]']   
+                                                                                                  
+ block6b_project_conv (Conv  (None, 7, 7, 192)            221184    ['block6b_se_excite[0][0]']   
+ 2D)                                                                                              
+                                                                                                  
+ block6b_project_bn (BatchN  (None, 7, 7, 192)            768       ['block6b_project_conv[0][0]']
+ ormalization)                                                                                    
+                                                                                                  
+ block6b_drop (Dropout)      (None, 7, 7, 192)            0         ['block6b_project_bn[0][0]']  
+                                                                                                  
+ block6b_add (Add)           (None, 7, 7, 192)            0         ['block6b_drop[0][0]',        
+                                                                     'block6a_project_bn[0][0]']  
+                                                                                                  
+ block6c_expand_conv (Conv2  (None, 7, 7, 1152)           221184    ['block6b_add[0][0]']         
+ D)                                                                                               
+                                                                                                  
+ block6c_expand_bn (BatchNo  (None, 7, 7, 1152)           4608      ['block6c_expand_conv[0][0]'] 
+ rmalization)                                                                                     
+                                                                                                  
+ block6c_expand_activation   (None, 7, 7, 1152)           0         ['block6c_expand_bn[0][0]']   
+ (Activation)                                                                                     
+                                                                                                  
+ block6c_dwconv2 (Depthwise  (None, 7, 7, 1152)           10368     ['block6c_expand_activation[0]
+ Conv2D)                                                            [0]']                         
+                                                                                                  
+ block6c_bn (BatchNormaliza  (None, 7, 7, 1152)           4608      ['block6c_dwconv2[0][0]']     
+ tion)                                                                                            
+                                                                                                  
+ block6c_activation (Activa  (None, 7, 7, 1152)           0         ['block6c_bn[0][0]']          
+ tion)                                                                                            
+                                                                                                  
+ block6c_se_squeeze (Global  (None, 1152)                 0         ['block6c_activation[0][0]']  
+ AveragePooling2D)                                                                                
+                                                                                                  
+ block6c_se_reshape (Reshap  (None, 1, 1, 1152)           0         ['block6c_se_squeeze[0][0]']  
+ e)                                                                                               
+                                                                                                  
+ block6c_se_reduce (Conv2D)  (None, 1, 1, 48)             55344     ['block6c_se_reshape[0][0]']  
+                                                                                                  
+ block6c_se_expand (Conv2D)  (None, 1, 1, 1152)           56448     ['block6c_se_reduce[0][0]']   
+                                                                                                  
+ block6c_se_excite (Multipl  (None, 7, 7, 1152)           0         ['block6c_activation[0][0]',  
+ y)                                                                  'block6c_se_expand[0][0]']   
+                                                                                                  
+ block6c_project_conv (Conv  (None, 7, 7, 192)            221184    ['block6c_se_excite[0][0]']   
+ 2D)                                                                                              
+                                                                                                  
+ block6c_project_bn (BatchN  (None, 7, 7, 192)            768       ['block6c_project_conv[0][0]']
+ ormalization)                                                                                    
+                                                                                                  
+ block6c_drop (Dropout)      (None, 7, 7, 192)            0         ['block6c_project_bn[0][0]']  
+                                                                                                  
+ block6c_add (Add)           (None, 7, 7, 192)            0         ['block6c_drop[0][0]',        
+                                                                     'block6b_add[0][0]']         
+                                                                                                  
+ block6d_expand_conv (Conv2  (None, 7, 7, 1152)           221184    ['block6c_add[0][0]']         
+ D)                                                                                               
+                                                                                                  
+ block6d_expand_bn (BatchNo  (None, 7, 7, 1152)           4608      ['block6d_expand_conv[0][0]'] 
+ rmalization)                                                                                     
+                                                                                                  
+ block6d_expand_activation   (None, 7, 7, 1152)           0         ['block6d_expand_bn[0][0]']   
+ (Activation)                                                                                     
+                                                                                                  
+ block6d_dwconv2 (Depthwise  (None, 7, 7, 1152)           10368     ['block6d_expand_activation[0]
+ Conv2D)                                                            [0]']                         
+                                                                                                  
+ block6d_bn (BatchNormaliza  (None, 7, 7, 1152)           4608      ['block6d_dwconv2[0][0]']     
+ tion)                                                                                            
+                                                                                                  
+ block6d_activation (Activa  (None, 7, 7, 1152)           0         ['block6d_bn[0][0]']          
+ tion)                                                                                            
+                                                                                                  
+ block6d_se_squeeze (Global  (None, 1152)                 0         ['block6d_activation[0][0]']  
+ AveragePooling2D)                                                                                
+                                                                                                  
+ block6d_se_reshape (Reshap  (None, 1, 1, 1152)           0         ['block6d_se_squeeze[0][0]']  
+ e)                                                                                               
+                                                                                                  
+ block6d_se_reduce (Conv2D)  (None, 1, 1, 48)             55344     ['block6d_se_reshape[0][0]']  
+                                                                                                  
+ block6d_se_expand (Conv2D)  (None, 1, 1, 1152)           56448     ['block6d_se_reduce[0][0]']   
+                                                                                                  
+ block6d_se_excite (Multipl  (None, 7, 7, 1152)           0         ['block6d_activation[0][0]',  
+ y)                                                                  'block6d_se_expand[0][0]']   
+                                                                                                  
+ block6d_project_conv (Conv  (None, 7, 7, 192)            221184    ['block6d_se_excite[0][0]']   
+ 2D)                                                                                              
+                                                                                                  
+ block6d_project_bn (BatchN  (None, 7, 7, 192)            768       ['block6d_project_conv[0][0]']
+ ormalization)                                                                                    
+                                                                                                  
+ block6d_drop (Dropout)      (None, 7, 7, 192)            0         ['block6d_project_bn[0][0]']  
+                                                                                                  
+ block6d_add (Add)           (None, 7, 7, 192)            0         ['block6d_drop[0][0]',        
+                                                                     'block6c_add[0][0]']         
+                                                                                                  
+ block6e_expand_conv (Conv2  (None, 7, 7, 1152)           221184    ['block6d_add[0][0]']         
+ D)                                                                                               
+                                                                                                  
+ block6e_expand_bn (BatchNo  (None, 7, 7, 1152)           4608      ['block6e_expand_conv[0][0]'] 
+ rmalization)                                                                                     
+                                                                                                  
+ block6e_expand_activation   (None, 7, 7, 1152)           0         ['block6e_expand_bn[0][0]']   
+ (Activation)                                                                                     
+                                                                                                  
+ block6e_dwconv2 (Depthwise  (None, 7, 7, 1152)           10368     ['block6e_expand_activation[0]
+ Conv2D)                                                            [0]']                         
+                                                                                                  
+ block6e_bn (BatchNormaliza  (None, 7, 7, 1152)           4608      ['block6e_dwconv2[0][0]']     
+ tion)                                                                                            
+                                                                                                  
+ block6e_activation (Activa  (None, 7, 7, 1152)           0         ['block6e_bn[0][0]']          
+ tion)                                                                                            
+                                                                                                  
+ block6e_se_squeeze (Global  (None, 1152)                 0         ['block6e_activation[0][0]']  
+ AveragePooling2D)                                                                                
+                                                                                                  
+ block6e_se_reshape (Reshap  (None, 1, 1, 1152)           0         ['block6e_se_squeeze[0][0]']  
+ e)                                                                                               
+                                                                                                  
+ block6e_se_reduce (Conv2D)  (None, 1, 1, 48)             55344     ['block6e_se_reshape[0][0]']  
+                                                                                                  
+ block6e_se_expand (Conv2D)  (None, 1, 1, 1152)           56448     ['block6e_se_reduce[0][0]']   
+                                                                                                  
+ block6e_se_excite (Multipl  (None, 7, 7, 1152)           0         ['block6e_activation[0][0]',  
+ y)                                                                  'block6e_se_expand[0][0]']   
+                                                                                                  
+ block6e_project_conv (Conv  (None, 7, 7, 192)            221184    ['block6e_se_excite[0][0]']   
+ 2D)                                                                                              
+                                                                                                  
+ block6e_project_bn (BatchN  (None, 7, 7, 192)            768       ['block6e_project_conv[0][0]']
+ ormalization)                                                                                    
+                                                                                                  
+ block6e_drop (Dropout)      (None, 7, 7, 192)            0         ['block6e_project_bn[0][0]']  
+                                                                                                  
+ block6e_add (Add)           (None, 7, 7, 192)            0         ['block6e_drop[0][0]',        
+                                                                     'block6d_add[0][0]']         
+                                                                                                  
+ block6f_expand_conv (Conv2  (None, 7, 7, 1152)           221184    ['block6e_add[0][0]']         
+ D)                                                                                               
+                                                                                                  
+ block6f_expand_bn (BatchNo  (None, 7, 7, 1152)           4608      ['block6f_expand_conv[0][0]'] 
+ rmalization)                                                                                     
+                                                                                                  
+ block6f_expand_activation   (None, 7, 7, 1152)           0         ['block6f_expand_bn[0][0]']   
+ (Activation)                                                                                     
+                                                                                                  
+ block6f_dwconv2 (Depthwise  (None, 7, 7, 1152)           10368     ['block6f_expand_activation[0]
+ Conv2D)                                                            [0]']                         
+                                                                                                  
+ block6f_bn (BatchNormaliza  (None, 7, 7, 1152)           4608      ['block6f_dwconv2[0][0]']     
+ tion)                                                                                            
+                                                                                                  
+ block6f_activation (Activa  (None, 7, 7, 1152)           0         ['block6f_bn[0][0]']          
+ tion)                                                                                            
+                                                                                                  
+ block6f_se_squeeze (Global  (None, 1152)                 0         ['block6f_activation[0][0]']  
+ AveragePooling2D)                                                                                
+                                                                                                  
+ block6f_se_reshape (Reshap  (None, 1, 1, 1152)           0         ['block6f_se_squeeze[0][0]']  
+ e)                                                                                               
+                                                                                                  
+ block6f_se_reduce (Conv2D)  (None, 1, 1, 48)             55344     ['block6f_se_reshape[0][0]']  
+                                                                                                  
+ block6f_se_expand (Conv2D)  (None, 1, 1, 1152)           56448     ['block6f_se_reduce[0][0]']   
+                                                                                                  
+ block6f_se_excite (Multipl  (None, 7, 7, 1152)           0         ['block6f_activation[0][0]',  
+ y)                                                                  'block6f_se_expand[0][0]']   
+                                                                                                  
+ block6f_project_conv (Conv  (None, 7, 7, 192)            221184    ['block6f_se_excite[0][0]']   
+ 2D)                                                                                              
+                                                                                                  
+ block6f_project_bn (BatchN  (None, 7, 7, 192)            768       ['block6f_project_conv[0][0]']
+ ormalization)                                                                                    
+                                                                                                  
+ block6f_drop (Dropout)      (None, 7, 7, 192)            0         ['block6f_project_bn[0][0]']  
+                                                                                                  
+ block6f_add (Add)           (None, 7, 7, 192)            0         ['block6f_drop[0][0]',        
+                                                                     'block6e_add[0][0]']         
+                                                                                                  
+ block6g_expand_conv (Conv2  (None, 7, 7, 1152)           221184    ['block6f_add[0][0]']         
+ D)                                                                                               
+                                                                                                  
+ block6g_expand_bn (BatchNo  (None, 7, 7, 1152)           4608      ['block6g_expand_conv[0][0]'] 
+ rmalization)                                                                                     
+                                                                                                  
+ block6g_expand_activation   (None, 7, 7, 1152)           0         ['block6g_expand_bn[0][0]']   
+ (Activation)                                                                                     
+                                                                                                  
+ block6g_dwconv2 (Depthwise  (None, 7, 7, 1152)           10368     ['block6g_expand_activation[0]
+ Conv2D)                                                            [0]']                         
+                                                                                                  
+ block6g_bn (BatchNormaliza  (None, 7, 7, 1152)           4608      ['block6g_dwconv2[0][0]']     
+ tion)                                                                                            
+                                                                                                  
+ block6g_activation (Activa  (None, 7, 7, 1152)           0         ['block6g_bn[0][0]']          
+ tion)                                                                                            
+                                                                                                  
+ block6g_se_squeeze (Global  (None, 1152)                 0         ['block6g_activation[0][0]']  
+ AveragePooling2D)                                                                                
+                                                                                                  
+ block6g_se_reshape (Reshap  (None, 1, 1, 1152)           0         ['block6g_se_squeeze[0][0]']  
+ e)                                                                                               
+                                                                                                  
+ block6g_se_reduce (Conv2D)  (None, 1, 1, 48)             55344     ['block6g_se_reshape[0][0]']  
+                                                                                                  
+ block6g_se_expand (Conv2D)  (None, 1, 1, 1152)           56448     ['block6g_se_reduce[0][0]']   
+                                                                                                  
+ block6g_se_excite (Multipl  (None, 7, 7, 1152)           0         ['block6g_activation[0][0]',  
+ y)                                                                  'block6g_se_expand[0][0]']   
+                                                                                                  
+ block6g_project_conv (Conv  (None, 7, 7, 192)            221184    ['block6g_se_excite[0][0]']   
+ 2D)                                                                                              
+                                                                                                  
+ block6g_project_bn (BatchN  (None, 7, 7, 192)            768       ['block6g_project_conv[0][0]']
+ ormalization)                                                                                    
+                                                                                                  
+ block6g_drop (Dropout)      (None, 7, 7, 192)            0         ['block6g_project_bn[0][0]']  
+                                                                                                  
+ block6g_add (Add)           (None, 7, 7, 192)            0         ['block6g_drop[0][0]',        
+                                                                     'block6f_add[0][0]']         
+                                                                                                  
+ block6h_expand_conv (Conv2  (None, 7, 7, 1152)           221184    ['block6g_add[0][0]']         
+ D)                                                                                               
+                                                                                                  
+ block6h_expand_bn (BatchNo  (None, 7, 7, 1152)           4608      ['block6h_expand_conv[0][0]'] 
+ rmalization)                                                                                     
+                                                                                                  
+ block6h_expand_activation   (None, 7, 7, 1152)           0         ['block6h_expand_bn[0][0]']   
+ (Activation)                                                                                     
+                                                                                                  
+ block6h_dwconv2 (Depthwise  (None, 7, 7, 1152)           10368     ['block6h_expand_activation[0]
+ Conv2D)                                                            [0]']                         
+                                                                                                  
+ block6h_bn (BatchNormaliza  (None, 7, 7, 1152)           4608      ['block6h_dwconv2[0][0]']     
+ tion)                                                                                            
+                                                                                                  
+ block6h_activation (Activa  (None, 7, 7, 1152)           0         ['block6h_bn[0][0]']          
+ tion)                                                                                            
+                                                                                                  
+ block6h_se_squeeze (Global  (None, 1152)                 0         ['block6h_activation[0][0]']  
+ AveragePooling2D)                                                                                
+                                                                                                  
+ block6h_se_reshape (Reshap  (None, 1, 1, 1152)           0         ['block6h_se_squeeze[0][0]']  
+ e)                                                                                               
+                                                                                                  
+ block6h_se_reduce (Conv2D)  (None, 1, 1, 48)             55344     ['block6h_se_reshape[0][0]']  
+                                                                                                  
+ block6h_se_expand (Conv2D)  (None, 1, 1, 1152)           56448     ['block6h_se_reduce[0][0]']   
+                                                                                                  
+ block6h_se_excite (Multipl  (None, 7, 7, 1152)           0         ['block6h_activation[0][0]',  
+ y)                                                                  'block6h_se_expand[0][0]']   
+                                                                                                  
+ block6h_project_conv (Conv  (None, 7, 7, 192)            221184    ['block6h_se_excite[0][0]']   
+ 2D)                                                                                              
+                                                                                                  
+ block6h_project_bn (BatchN  (None, 7, 7, 192)            768       ['block6h_project_conv[0][0]']
+ ormalization)                                                                                    
+                                                                                                  
+ block6h_drop (Dropout)      (None, 7, 7, 192)            0         ['block6h_project_bn[0][0]']  
+                                                                                                  
+ block6h_add (Add)           (None, 7, 7, 192)            0         ['block6h_drop[0][0]',        
+                                                                     'block6g_add[0][0]']         
+                                                                                                  
+ top_conv (Conv2D)           (None, 7, 7, 1280)           245760    ['block6h_add[0][0]']         
+                                                                                                  
+ top_bn (BatchNormalization  (None, 7, 7, 1280)           5120      ['top_conv[0][0]']            
+ )                                                                                                
+                                                                                                  
+ top_activation (Activation  (None, 7, 7, 1280)           0         ['top_bn[0][0]']              
+ )                                                                                                
+                                                                                                  
+ avg_pool (GlobalAveragePoo  (None, 1280)                 0         ['top_activation[0][0]']      
+ ling2D)                                                                                          
+                                                                                                  
+ top_dropout (Dropout)       (None, 1280)                 0         ['avg_pool[0][0]']            
+                                                                                                  
+ predictions (Dense)         (None, 1000)                 1281000   ['top_dropout[0][0]']         
+                                                                                                  
+==================================================================================================
+Total params: 7200312 (27.47 MB)
+Trainable params: 7139704 (27.24 MB)
+Non-trainable params: 60608 (236.75 KB)
+
+# Count the number of layers
+print(f"Number of layers in base_model: {len(base_model.layers)}")
+Number of layers in base_model: 273
+
+# Check the input shape of our model
+base_model.input_shape
+(None, 224, 224, 3)
+
+# Check the model's output shape
+base_model.output_shape
+(None, 1000)
+
+# Create a base model with 120 output classes
+base_model = tf.keras.applications.efficientnet_v2.EfficientNetV2B0(
+    include_top=True,
+    include_preprocessing=True,
+    weights="imagenet",
+    input_shape=INPUT_SHAPE,
+    classes=len(dog_names)
+)
+
+base_model.output_shape
+
+# Create a base model with no top
+base_model = tf.keras.applications.efficientnet_v2.EfficientNetV2B0(
+    include_top=False,
+    include_preprocessing=True,
+    weights="imagenet",
+    input_shape=INPUT_SHAPE,
+)
+
+# Check the output shape
+base_model.output_shape
+Downloading data from https://storage.googleapis.com/tensorflow/keras-applications/efficientnet_v2/efficientnetv2-b0_notop.h5
+24274472/24274472 [==============================] - 1s 0us/step
+(None, 7, 7, 1280)
+
+# Count the number of layers
+print(f"Number of layers in base_model: {len(base_model.layers)}")
+Number of layers in base_model: 270
+
+# Check the number of parameters in our model
+base_model.count_params()
+5919312
+
+import numpy as np
+
+def count_parameters(model, print_output=True):
+  """
+  Counts the number of trainable, non-trainable and total parameters of a given model.
+  """
+  trainable_parameters = np.sum([np.prod(layer.shape) for layer in model.trainable_weights])
+  non_trainable_parameters = np.sum([np.prod(layer.shape) for layer in model.non_trainable_weights])
+  total_parameters = trainable_parameters + non_trainable_parameters
+  if print_output:
+    print(f"Model {model.name} parameter counts:")
+    print(f"Total parameters: {total_parameters}")
+    print(f"Trainable parameters: {trainable_parameters}")
+    print(f"Non-trainable parameters: {non_trainable_parameters}")
+  else:
+    return total_parameters, trainable_parameters, non_trainable_parameters
+
+count_parameters(model=base_model, print_output=True)
+Model efficientnetv2-b0 parameter counts:
+Total parameters: 5919312
+Trainable parameters: 5858704
+Non-trainable parameters: 60608
+
+# Freeze the base model
+base_model.trainable = False
+base_model.trainable
+False
+
+count_parameters(model=base_model, print_output=True)
+Model efficientnetv2-b0 parameter counts:
+Total parameters: 5919312.0
+Trainable parameters: 0.0
+Non-trainable parameters: 5919312
+
+# Extract features from a single image using our base model
+feature_extraction = base_model(image_batch[0])
+feature_extraction
+
+# Current image shape
+shape_of_image_without_batch = image_batch[0].shape
+
+# Add a batch dimension to our single image
+shape_of_image_with_batch = tf.expand_dims(input=image_batch[0], axis=0).shape
+
+print(f"Shape of image without batch: {shape_of_image_without_batch}")
+print(f"Shape of image with batch: {shape_of_image_with_batch}")
+
+# Extract features from a single image using our base model
+feature_extraction = base_model(tf.expand_dims(image_batch[0], axis=0))
+feature_extraction
+<tf.Tensor: shape=(1, 7, 7, 1280), dtype=float32, numpy=
+array([[[[-2.19177201e-01, -3.44185606e-02, -1.40321642e-01, ...,
+          -1.44454449e-01, -2.73809850e-01, -7.41252452e-02],
+         [-8.69670734e-02, -6.48750067e-02, -2.14546964e-01, ...,
+          -4.57209721e-02, -2.77900100e-01, -8.20885971e-02],
+         [-2.76872963e-01, -8.26781020e-02, -3.85153107e-02, ...,
+          -2.72128999e-01, -2.52802134e-01, -2.28105962e-01],
+         ...,
+         [-1.01604000e-01, -3.55145968e-02, -2.23027021e-01, ...,
+          -2.26227805e-01, -8.61771777e-02, -1.60450727e-01],
+         [-5.87608740e-02, -4.65543661e-03, -1.06193267e-01, ...,
+          -2.87548676e-02, -9.06914026e-02, -1.82624385e-01],
+         [-6.27618432e-02, -1.38620799e-03,  1.52704502e-02, ...,
+          -7.85450079e-03, -1.84584558e-01, -2.62404829e-01]],
+
+        [[-2.17334151e-01, -1.10280879e-01, -2.74605274e-01, ...,
+          -2.22405165e-01, -2.74738282e-01, -1.01998925e-01],
+         [-1.40700653e-01, -1.66820198e-01, -2.77449101e-01, ...,
+           2.40375683e-01, -2.77627349e-01, -9.07808691e-02],
+         [-2.40916476e-01, -2.00582087e-01, -2.38370374e-01, ...,
+          -8.27576742e-02, -2.78428614e-01, -1.23056054e-01],
+         ...,
+         [-2.67296195e-01, -5.43131726e-03, -6.44061863e-02, ...,
+          -3.34720500e-02, -1.55141622e-01, -3.23073938e-02],
+         [-2.66513556e-01, -2.09966358e-02, -1.50375053e-01, ...,
+          -6.29274473e-02, -2.69798309e-01, -2.74081439e-01],
+         [-8.39830115e-02, -1.58605091e-02, -2.78447241e-01, ...,
+          -1.43555822e-02, -2.77474761e-01,  1.37483165e-01]],
+
+        [[-2.15840712e-01,  4.50323820e-01, -7.51058161e-02, ...,
+          -2.43637279e-01, -2.75048614e-01, -6.00421876e-02],
+         [-2.39066556e-01, -2.25066260e-01, -4.89832312e-02, ...,
+          -2.77957618e-01, -1.14677951e-01, -2.69968715e-02],
+         [-1.60943881e-01, -2.12972730e-01, -1.08622171e-01, ...,
+          -2.78464079e-01, -1.95970193e-01, -2.92074662e-02],
+         ...,
+         [-2.67642140e-01, -7.13412274e-10, -2.47387841e-01, ...,
+          -1.27752789e-03,  1.69062471e+00, -1.07747754e-02],
+         [-2.69456387e-01, -3.02123808e-05, -2.19904676e-01, ...,
+          -1.19841937e-02,  6.54936790e-01,  4.92877871e-01],
+         [-1.83339473e-02, -9.84105989e-02, -2.77752399e-01, ...,
+          -9.53171253e-02, -2.76987553e-01, -1.81873620e-01]],
+
+        ...,
+
+        [[-6.59235120e-02, -1.64803467e-03, -1.58951283e-01, ...,
+          -1.34164095e-01, -6.30896613e-02, -7.77927637e-02],
+         [-1.83377475e-01, -4.98497509e-04, -1.57654762e-01, ...,
+          -4.48885784e-02, -1.06884383e-01, -2.78372377e-01],
+         [-2.45749369e-01, -9.95399058e-03, -1.79216102e-01, ...,
+          -1.02837617e-02, -1.84168354e-01, -1.70697242e-01],
+         ...,
+         [ 2.22050592e-01, -2.04384560e-04, -1.46467671e-01, ...,
+          -2.65387502e-02, -1.85434178e-01, -9.71652716e-02],
+         [ 1.52228832e+00, -3.39617883e-03, -3.22414264e-02, ...,
+          -1.19287046e-02, -1.46435276e-01, -8.73169452e-02],
+         [-1.89164400e-01, -5.49114570e-02, -2.05218419e-01, ...,
+          -1.32163316e-01, -1.48950770e-01, -1.18042991e-01]],
+
+        [[-2.16520607e-01, -7.84920622e-03, -1.43650264e-01, ...,
+          -1.73660204e-01, -4.83706780e-02, -3.76228467e-02],
+         [-2.78293848e-01, -6.24539470e-03, -2.28590608e-01, ...,
+          -2.06465453e-01, -1.93291768e-01, -9.23046917e-02],
+         [-2.40500003e-01, -2.73558766e-01, -1.58736348e-01, ...,
+          -4.13209312e-02, -2.64240265e-01, -3.26484852e-02],
+         ...,
+         [-2.31358394e-01, -2.72292078e-01, -6.80670887e-02, ...,
+          -2.16453914e-02, -2.71368980e-01, -3.88960652e-02],
+         [-2.45319903e-01, -2.78179497e-01, -6.18890636e-02, ...,
+          -1.86282583e-02, -2.23804727e-01, -2.72233319e-02],
+         [-2.31111392e-01, -2.37449735e-01, -5.13911694e-02, ...,
+          -4.55225781e-02, -2.74753064e-01, -3.51530202e-02]],
+
+        [[-3.96142267e-02, -1.39998682e-02, -9.56050456e-02, ...,
+          -2.33392462e-01, -1.83407709e-01, -4.99856956e-02],
+         [-2.60713607e-01, -3.96164991e-02, -1.29626304e-01, ...,
+          -2.78417081e-01, -2.78285533e-01, -7.70441368e-02],
+         [-8.02241415e-02, -2.30456606e-01, -1.13508031e-01, ...,
+          -5.45607917e-02, -2.71063268e-01, -2.75666509e-02],
+         ...,
+         [-9.41052362e-02, -2.42691532e-01, -5.48249595e-02, ...,
+          -2.13044193e-02, -2.63691694e-01, -9.28506851e-02],
+         [-9.08804908e-02, -2.40457997e-01, -7.88932368e-02, ...,
+          -3.80579121e-02, -2.71065891e-01, -4.05692160e-02],
+         [-1.26358300e-01, -2.17053503e-01, -7.44825602e-02, ...,
+          -5.66985942e-02, -2.75216103e-01, -6.91162944e-02]]]],
+      dtype=float32)>
+
+
+# Check shape of feature extraction
+feature_extraction.shape
+TensorShape([1, 7, 7, 1280])
+
+num_input_features = 224*224*3
+feature_extraction_features = 1*7*7*1280
+
+num_input_features / feature_extraction_features
+2.4
+
+# Turn feature extraction into a feature vector
+feature_vector = tf.keras.layers.GlobalAveragePooling2D()(feature_extraction) # pass feature_extraction to the pooling layer
+feature_vector
+<tf.Tensor: shape=(1, 1280), dtype=float32, numpy=
+array([[-0.11521906, -0.04476562, -0.12476546, ..., -0.09118073,
+        -0.08420841, -0.07769417]], dtype=float32)>
+
+# Check out the feature vector shape
+feature_vector.shape
+TensorShape([1, 1280])
+
+# Compare the reduction
+num_input_features = 224*224*3
+feature_extraction_features = 1*7*7*1280
+feature_vector_features = 1*1280
+
+print(f"Input -> feature extraction reduction factor: {num_input_features / feature_extraction_features}")
+print(f"Feature extraction -> feature vector reduction factor: {feature_extraction_features / feature_vector_features}")
+print(f"Input -> feature extraction -> feature vector reduction factor: {num_input_features / feature_vector_features}")
+Input -> feature extraction reduction factor: 2.4
+Feature extraction -> feature vector reduction factor: 49.0
+Input -> feature extraction -> feature vector reduction factor: 117.6
+
+# Create a base model with no top and a pooling layer built-in
+base_model = tf.keras.applications.efficientnet_v2.EfficientNetV2B0(
+    include_top=False,
+    weights="imagenet",
+    input_shape=INPUT_SHAPE,
+    pooling="avg", # can also use "max"
+    include_preprocessing=True,
+)
+
+# Check the summary (optional)
+# base_model.summary()
+
+# Check the output shape
+base_model.output_shape
+(None, 1280)
+
+# Freeze the base weights
+base_model.trainable = False
+
+# Count the parameters
+count_parameters(model=base_model, print_output=True)
+Model efficientnetv2-b0 parameter counts:
+Total parameters: 5919312.0
+Trainable parameters: 0.0
+Non-trainable parameters: 5919312
+
+# Get a feature vector of a single image (don't forget to add a batch dimension)
+feature_vector_2 = base_model(tf.expand_dims(image_batch[0], axis=0))
+feature_vector_2
+<tf.Tensor: shape=(1, 1280), dtype=float32, numpy=
+array([[-0.11521906, -0.04476562, -0.12476546, ..., -0.09118073,
+        -0.08420841, -0.07769417]], dtype=float32)>
+
+# Compare the two feature vectors
+np.all(feature_vector == feature_vector_2)
+True
+
+# Create a sequential model
+tf.random.set_seed(42)
+sequential_model = tf.keras.Sequential([base_model, # input and middle layers
+                                        tf.keras.layers.Dense(units=len(dog_names), # output layer
+                                                              activation="softmax")])
+sequential_model.summary()
+Model: "sequential"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #   
+=================================================================
+ efficientnetv2-b0 (Functio  (None, 1280)              5919312   
+ nal)                                                            
+                                                                 
+ dense (Dense)               (None, 120)               153720    
+                                                                 
+=================================================================
+Total params: 6073032 (23.17 MB)
+Trainable params: 153720 (600.47 KB)
+Non-trainable params: 5919312 (22.58 MB)
+_________________________________________________________________
+
+# Check the input shape
+sequential_model.input_shape
+(None, 224, 224, 3)
+
+# Check the output shape
+sequential_model.output_shape
+(None, 120)
+
+
+# Get a single image with a batch size of 1
+single_image_input = tf.expand_dims(image_batch[0], axis=0)
+
+# Pass the image through our model
+single_image_output_sequential = sequential_model(single_image_input)
+
+# Check the output
+single_image_output_sequential
+<tf.Tensor: shape=(1, 120), dtype=float32, numpy=
+array([[0.00783153, 0.01119391, 0.00476165, 0.0072348 , 0.00766934,
+        0.00753752, 0.00522398, 0.02337082, 0.00579716, 0.00539333,
+        0.00549823, 0.01011768, 0.00610076, 0.0109506 , 0.00540159,
+        0.0079683 , 0.01227358, 0.01056393, 0.00507148, 0.00996652,
+        0.00604106, 0.00729022, 0.0155036 , 0.00745004, 0.00628229,
+        0.00796217, 0.00905823, 0.00712278, 0.01243507, 0.006427  ,
+        0.00602891, 0.01276839, 0.00652441, 0.00842482, 0.01247454,
+        0.00749902, 0.01086363, 0.007803  , 0.0058652 , 0.00474356,
+        0.00902809, 0.00715358, 0.00981051, 0.00444271, 0.01031628,
+        0.00691859, 0.00699083, 0.0065892 , 0.00966169, 0.01177148,
+        0.00908043, 0.00729699, 0.00496712, 0.00509035, 0.00584058,
+        0.01068885, 0.00817651, 0.00602052, 0.00901201, 0.01008151,
+        0.00495409, 0.01285929, 0.00480146, 0.0108622 , 0.01421483,
+        0.00814719, 0.00910061, 0.00798947, 0.00789293, 0.00636969,
+        0.00656019, 0.01309155, 0.00754355, 0.00702062, 0.00485884,
+        0.00958675, 0.01086809, 0.00682202, 0.00923016, 0.00856321,
+        0.00482627, 0.01234931, 0.01140433, 0.00771413, 0.01140642,
+        0.00382939, 0.00891482, 0.00409833, 0.00771865, 0.00652135,
+        0.00668143, 0.00935989, 0.00784146, 0.00751913, 0.00785116,
+        0.00794632, 0.0079146 , 0.00798953, 0.01011222, 0.01318719,
+        0.00721227, 0.00736159, 0.01369175, 0.01087009, 0.00510072,
+        0.00843218, 0.00451756, 0.00966478, 0.01013771, 0.00715721,
+        0.00367131, 0.00825834, 0.00832634, 0.01225684, 0.00724481,
+        0.00670675, 0.00536995, 0.01070637, 0.00937007, 0.00998812]],
+      dtype=float32)>
+
+# Sum the output
+np.sum(single_image_output_sequential)
+1.0
+
+# Find the index with the highest value
+highest_value_index_sequential_model_output = np.argmax(single_image_output_sequential)
+highest_value_sequential_model_output = np.max(single_image_output_sequential)
+
+print(f"Highest value index: {highest_value_index_sequential_model_output} ({dog_names[highest_value_index_sequential_model_output]})")
+print(f"Prediction probability: {highest_value_sequential_model_output}")
+Highest value index: 7 (basenji)
+Prediction probability: 0.023370817303657532
+
+# Check the original label value
+tf.argmax(label_batch[0])
+<tf.Tensor: shape=(), dtype=int64, numpy=95>
+
+# Index on class_names with our model's highest prediction probability
+sequential_model_predicted_label = class_names[tf.argmax(sequential_model(tf.expand_dims(image_batch[0], axis=0)), axis=1).numpy()[0]]
+
+# Get the truth label
+single_image_ground_truth_label = class_names[tf.argmax(label_batch[0])]
+
+# Print predicted and ground truth labels
+print(f"Sequential model predicted label: {sequential_model_predicted_label}")
+print(f"Ground truth label: {single_image_ground_truth_label}")
+Sequential model predicted label: basenji
+Ground truth label: schipperke
+
+# 1. Create input layer
+inputs = tf.keras.Input(shape=INPUT_SHAPE)
+
+# 2. Create hidden layer
+x = base_model(inputs, training=False)
+
+# 3. Create the output layer
+outputs = tf.keras.layers.Dense(units=len(class_names), # one output per class
+                                activation="softmax",
+                                name="output_layer")(x)
+
+# 4. Connect the inputs and outputs together
+functional_model = tf.keras.Model(inputs=inputs,
+                                  outputs=outputs,
+                                  name="functional_model")
+
+# Get a model summary
+functional_model.summary()
+Model: "functional_model"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #   
+=================================================================
+ input_4 (InputLayer)        [(None, 224, 224, 3)]     0         
+                                                                 
+ efficientnetv2-b0 (Functio  (None, 1280)              5919312   
+ nal)                                                            
+                                                                 
+ output_layer (Dense)        (None, 120)               153720    
+                                                                 
+=================================================================
+Total params: 6073032 (23.17 MB)
+Trainable params: 153720 (600.47 KB)
+Non-trainable params: 5919312 (22.58 MB)
+_________________________________________________________________
+
+# Pass a single image through our functional_model
+single_image_output_functional = functional_model(single_image_input)
+
+# Find the index with the highest value
+highest_value_index_functional_model_output = np.argmax(single_image_output_functional)
+highest_value_functional_model_output = np.max(single_image_output_functional)
+
+highest_value_index_functional_model_output, highest_value_functional_model_output
+(69, 0.017855722)
+
+def create_model(include_top: bool = False,
+                 num_classes: int = 1000,
+                 input_shape: tuple[int, int, int] = (224, 224, 3),
+                 include_preprocessing: bool = True,
+                 trainable: bool = False,
+                 dropout: float = 0.2,
+                 model_name: str = "model") -> tf.keras.Model:
+  """
+  Create an EfficientNetV2 B0 feature extractor model with a custom classifier layer.
+
+  Args:
+      include_top (bool, optional): Whether to include the top (classifier) layers of the model.
+      num_classes (int, optional): Number of output classes for the classifier layer.
+      input_shape (tuple[int, int, int], optional): Input shape for the model's images (height, width, channels).
+      include_preprocessing (bool, optional): Whether to include preprocessing layers for image normalization.
+      trainable (bool, optional): Whether to make the base model trainable.
+      dropout (float, optional): Dropout rate for the global average pooling layer.
+      model_name (str, optional): Name for the created model.
+
+  Returns:
+      tf.keras.Model: A TensorFlow Keras model with the specified configuration.
+  """
+  # Create base model
+  base_model = tf.keras.applications.efficientnet_v2.EfficientNetV2B0(
+    include_top=include_top,
+    weights="imagenet",
+    input_shape=input_shape,
+    include_preprocessing=include_preprocessing,
+    pooling="avg" # Can use this instead of adding tf.keras.layers.GlobalPooling2D() to the model
+    # pooling="max" # Can use this instead of adding tf.keras.layers.MaxPooling2D() to the model
+  )
+
+  # Freeze the base model (if necessary)
+  base_model.trainable = trainable
+
+  # Create input layer
+  inputs = tf.keras.Input(shape=input_shape, name="input_layer")
+
+  # Create model backbone (middle/hidden layers)
+  x = base_model(inputs, training=trainable)
+  # x = tf.keras.layers.GlobalAveragePooling2D()(x) # note: you should include pooling here if not using `pooling="avg"`
+  # x = tf.keras.layers.Dropout(0.2)(x) # optional regularization layer (search "dropout" for more)
+
+  # Create output layer (also known as "classifier" layer)
+  outputs = tf.keras.layers.Dense(units=num_classes,
+                                  activation="softmax",
+                                  name="output_layer")(x)
+
+  # Connect input and output layer
+  model = tf.keras.Model(inputs=inputs,
+                         outputs=outputs,
+                         name=model_name)
+
+  return model
+
+# Create a model
+model_0 = create_model(num_classes=len(class_names))
+model_0.summary()
+Model: "model"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #   
+=================================================================
+ input_layer (InputLayer)    [(None, 224, 224, 3)]     0         
+                                                                 
+ efficientnetv2-b0 (Functio  (None, 1280)              5919312   
+ nal)                                                            
+                                                                 
+ output_layer (Dense)        (None, 120)               153720    
+                                                                 
+=================================================================
+Total params: 6073032 (23.17 MB)
+Trainable params: 153720 (600.47 KB)
+Non-trainable params: 5919312 (22.58 MB)
+_________________________________________________________________
+
+for layer in model_0.layers:
+  print(layer.name, layer.trainable)
+input_layer True
+efficientnetv2-b0 False
+output_layer True
+
+# 1. Create model
+model_0 = create_model(num_classes=len(class_names),
+                       model_name="model_0")
+
+model_0.summary()
+Model: "model_0"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #   
+=================================================================
+ input_layer (InputLayer)    [(None, 224, 224, 3)]     0         
+                                                                 
+ efficientnetv2-b0 (Functio  (None, 1280)              5919312   
+ nal)                                                            
+                                                                 
+ output_layer (Dense)        (None, 120)               153720    
+                                                                 
+=================================================================
+Total params: 6073032 (23.17 MB)
+Trainable params: 153720 (600.47 KB)
+Non-trainable params: 5919312 (22.58 MB)
+_________________________________________________________________
+
+# Create optimizer (short version)
+optimizer = "adam"
+
+# The above line is the same as below
+optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
+optimizer
+<keras.src.optimizers.adam.Adam at 0x793270189360>
+
+# Check that our labels are one-hot encoded
+label_batch[0]
+<tf.Tensor: shape=(120,), dtype=float32, numpy=
+array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+       0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+       0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+       0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+       0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+       0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0., 0.,
+       0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+       0.], dtype=float32)>
+
+# Create our loss function
+loss = tf.keras.losses.CategoricalCrossentropy(from_logits=False) # use from_logits=False if using an activation function in final layer of model (default)
+loss
+<keras.src.losses.CategoricalCrossentropy at 0x7932c12ebeb0>
+
+# Create list of evaluation metrics
+metrics = ["accuracy"]
+
+# Compile model with shortcuts (faster to write code but less customizable)
+model_0.compile(optimizer="adam",
+                loss="categorical_crossentropy",
+                metrics=["accuracy"]) # new in TensorFlow 2.14.0 to automatically tune model optimization
+
+# Compile model with classes (will do the same as above)
+model_0.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+                loss=tf.keras.losses.CategoricalCrossentropy(from_logits=False),
+                metrics=["accuracy"])
+
+# Fit model_0 for 5 epochs
+epochs = 5
+history_0 = model_0.fit(x=train_10_percent_ds,
+                        epochs=epochs,
+                        validation_data=test_ds)
+Epoch 1/5
+38/38 [==============================] - 26s 460ms/step - loss: 3.9767 - accuracy: 0.2867 - val_loss: 3.0299 - val_accuracy: 0.5388
+Epoch 2/5
+38/38 [==============================] - 13s 358ms/step - loss: 2.0423 - accuracy: 0.7933 - val_loss: 1.8357 - val_accuracy: 0.7016
+Epoch 3/5
+38/38 [==============================] - 13s 358ms/step - loss: 1.0421 - accuracy: 0.8950 - val_loss: 1.2664 - val_accuracy: 0.7653
+Epoch 4/5
+38/38 [==============================] - 13s 358ms/step - loss: 0.6059 - accuracy: 0.9533 - val_loss: 1.0012 - val_accuracy: 0.8023
+Epoch 5/5
+38/38 [==============================] - 13s 359ms/step - loss: 0.4053 - accuracy: 0.9717 - val_loss: 0.8705 - val_accuracy: 0.8110
+
+# 1. Create a model
+model_0 = create_model(num_classes=len(dog_names))
+
+# 2. Compile the model
+model_0.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+                loss="categorical_crossentropy",
+                metrics=["accuracy"])
+
+# 3. Fit the model
+epochs = 5
+history_0 = model_0.fit(x=train_10_percent_ds,
+                        epochs=epochs,
+                        validation_data=test_ds)
+Epoch 1/5
+38/38 [==============================] - 21s 402ms/step - loss: 3.9618 - accuracy: 0.3008 - val_loss: 2.9954 - val_accuracy: 0.5790
+Epoch 2/5
+38/38 [==============================] - 13s 358ms/step - loss: 2.0118 - accuracy: 0.7958 - val_loss: 1.8101 - val_accuracy: 0.7157
+Epoch 3/5
+38/38 [==============================] - 13s 359ms/step - loss: 1.0246 - accuracy: 0.9058 - val_loss: 1.2555 - val_accuracy: 0.7717
+Epoch 4/5
+38/38 [==============================] - 14s 364ms/step - loss: 0.5994 - accuracy: 0.9550 - val_loss: 0.9974 - val_accuracy: 0.7990
+Epoch 5/5
+38/38 [==============================] - 14s 366ms/step - loss: 0.4009 - accuracy: 0.9717 - val_loss: 0.8619 - val_accuracy: 0.8115
+
+# Inspect History.history attribute for model_0
+history_0.history
+{'loss': [3.9267802238464355,
+  2.005645990371704,
+  1.0120075941085815,
+  0.5953215956687927,
+  0.3982667922973633],
+ 'accuracy': [0.3008333444595337,
+  0.79666668176651,
+  0.9058333039283752,
+  0.9524999856948853,
+  0.9708333611488342],
+ 'val_loss': [2.9705166816711426,
+  1.8010386228561401,
+  1.2489967346191406,
+  0.9901936054229736,
+  0.8602062463760376],
+ 'val_accuracy': [0.5708624720573425,
+  0.7153846025466919,
+  0.775291383266449,
+  0.8039627075195312,
+  0.8155011534690857]}
+
+def plot_model_loss_curves(history: tf.keras.callbacks.History) -> None:
+  """Takes a History object and plots loss and accuracy curves."""
+
+  # Get the accuracy values
+  acc = history.history["accuracy"]
+  val_acc = history.history["val_accuracy"]
+
+  # Get the loss values
+  loss = history.history["loss"]
+  val_loss = history.history["val_loss"]
+
+  # Get the number of epochs
+  epochs_range = range(len(acc))
+
+  # Create accuracy curves plot
+  plt.figure(figsize=(14, 7))
+  plt.subplot(1, 2, 1)
+  plt.plot(epochs_range, acc, label="Training Accuracy")
+  plt.plot(epochs_range, val_acc, label="Validation Accuracy")
+  plt.legend(loc="lower right")
+  plt.title("Training and Validation Accuracy")
+  plt.xlabel("Epoch")
+  plt.ylabel("Accuracy")
+
+  # Create loss curves plot
+  plt.subplot(1, 2, 2)
+  plt.plot(epochs_range, loss, label="Training Loss")
+  plt.plot(epochs_range, val_loss, label="Validation Loss")
+  plt.legend(loc="upper right")
+  plt.title("Training and Validation Loss")
+  plt.xlabel("Epoch")
+  plt.ylabel("Loss")
+
+  plt.show()
+
+plot_model_loss_curves(history=history_0)
+
+
+# Evaluate model_0, see: https://www.tensorflow.org/api_docs/python/tf/keras/Model#evaluate
+model_0_results = model_0.evaluate(x=test_ds)
+model_0_results
+269/269 [==============================] - 12s 45ms/step - loss: 0.8602 - accuracy: 0.8155
+[0.8602062463760376, 0.8155011534690857]
+
+# Get our model's metrics names
+model_0.metrics_names
+['loss', 'accuracy']
+
+# 1. Create model_1 (the next iteration of model_0)
+model_1 = create_model(num_classes=len(class_names),
+                       model_name="model_1")
+
+# 2. Compile model
+model_1.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+                loss="categorical_crossentropy",
+                metrics=["accuracy"])
+
+# 3. Fit model
+epochs=5
+history_1 = model_1.fit(x=train_ds,
+                        epochs=epochs,
+                        validation_data=test_ds)
+Epoch 1/5
+375/375 [==============================] - 43s 83ms/step - loss: 1.2809 - accuracy: 0.7609 - val_loss: 0.4895 - val_accuracy: 0.8742
+Epoch 2/5
+375/375 [==============================] - 29s 77ms/step - loss: 0.3678 - accuracy: 0.9014 - val_loss: 0.4135 - val_accuracy: 0.8756
+Epoch 3/5
+375/375 [==============================] - 29s 77ms/step - loss: 0.2622 - accuracy: 0.9304 - val_loss: 0.3876 - val_accuracy: 0.8767
+Epoch 4/5
+375/375 [==============================] - 29s 77ms/step - loss: 0.2030 - accuracy: 0.9485 - val_loss: 0.3737 - val_accuracy: 0.8821
+Epoch 5/5
+375/375 [==============================] - 29s 78ms/step - loss: 0.1607 - accuracy: 0.9613 - val_loss: 0.3680 - val_accuracy: 0.8818
+
+# Plot model_1 loss curves
+plot_model_loss_curves(history=history_1)
+
+
+# Evaluate model_1
+model_1_results = model_1.evaluate(test_ds)
+269/269 [==============================] - 12s 45ms/step - loss: 0.3680 - accuracy: 0.8818
+
+# This will output logits (as long as softmax activation isn't in the model)
+test_preds = model_1.predict(test_ds)
+
+# Note: If not using activation="softmax" in last layer of model, may need to turn them into prediction probabilities (easier to understand)
+# test_preds = tf.keras.activations.softmax(tf.constant(test_preds), axis=-1)
+269/269 [==============================] - 7s 21ms/step
+
+test_preds.shape
+(8580, 120)
+
+test_preds[0].shape, tf.argmax(test_preds[0])
+((120,), <tf.Tensor: shape=(), dtype=int64, numpy=0>)
+
+import numpy as np
+test_ds_images = np.concatenate([images for images, labels in test_ds], axis=0)
+test_ds_labels = np.concatenate([labels for images, labels in test_ds], axis=0)
+test_ds_labels[0], test_ds_images[0]
+
+# TK - get accuracy values per class and show how they compare to the original results
+# see: http://vision.stanford.edu/aditya86/ImageNetDogs/ -> http://vision.stanford.edu/aditya86/ImageNetDogs/bar_graph_full.png
+
+# Want to compare test_preds + test_labels on a per class basis
+# Can I convert both of these into a DataFrame and see what happens?
+test_preds_labels = test_preds.argmax(axis=-1)
+
+test_preds_labels
+
+array([  0,   0,   0, ..., 102, 119, 119])
+
+test_ds_labels
+
+array([  0,   0,   0, ..., 119, 119, 119], dtype=int32)
+
+test_results_df = pd.DataFrame({"test_pred_label": test_preds_labels,
+                                "test_pred_prob": np.max(test_preds, axis=-1),
+                                "test_pred_class_name": [class_names[test_pred_label] for test_pred_label in test_preds_labels],
+                                "test_truth_label": test_ds_labels,
+                                "test_truth_class_name": [class_names[test_truth_label] for test_truth_label in test_ds_labels]})
+
+test_results_df["correct"] = (test_results_df["test_pred_class_name"] == test_results_df["test_truth_class_name"]).astype(int)
+
+test_results_df
+
+test_pred_label	test_pred_prob	test_pred_class_name	test_truth_label	test_truth_class_name	correct
+0	0	0.981926	affenpinscher	0	affenpinscher	1
+1	0	0.747863	affenpinscher	0	affenpinscher	1
+2	0	0.995609	affenpinscher	0	affenpinscher	1
+3	44	0.467855	flat_coated_retriever	0	affenpinscher	0
+4	0	0.997168	affenpinscher	0	affenpinscher	1
+...	...	...	...	...	...	...
+8575	119	0.785783	yorkshire_terrier	119	yorkshire_terrier	1
+8576	102	0.735301	silky_terrier	119	yorkshire_terrier	0
+8577	102	0.828518	silky_terrier	119	yorkshire_terrier	0
+8578	119	0.940582	yorkshire_terrier	119	yorkshire_terrier	1
+8579	119	0.603093	yorkshire_terrier	119	yorkshire_terrier	1
+8580 rows × 6 columns
+
+# Calculate accuracy per class
+accuracy_per_class = test_results_df.groupby("test_truth_class_name")["correct"].mean()
+accuracy_per_class_df = pd.DataFrame(accuracy_per_class).reset_index().sort_values("correct", ascending=False)
+accuracy_per_class_df
+
+# pd.DataFrame(accuracy_per_class).sort_values("correct", ascending=False)
+test_truth_class_name	correct
+62	keeshond	1.000000
+10	bedlington_terrier	1.000000
+30	chow	0.989583
+92	saint_bernard	0.985714
+2	african_hunting_dog	0.985507
+...	...	...
+76	miniature_poodle	0.600000
+5	appenzeller	0.588235
+104	staffordshire_bullterrier	0.581818
+16	border_collie	0.560000
+43	eskimo_dog	0.440000
+
+
+(0,
+ array([[[ 43.804947,  44.804947,  38.804947],
+         [ 39.12483 ,  40.12483 ,  34.12483 ],
+         [ 82.701065,  83.701065,  77.62723 ],
+         ...,
+         [ 21.578135,  25.578135,  24.578135],
+         [ 19.741274,  23.741274,  22.741274],
+         [ 15.660867,  19.660868,  18.660868]],
+ 
+        [[ 40.762886,  41.762886,  35.41467 ],
+         [ 38.87469 ,  39.87469 ,  33.526478],
+         [ 84.99161 ,  85.99161 ,  78.59259 ],
+         ...,
+         [ 20.462063,  24.462063,  23.462063],
+         [ 19.207607,  23.207607,  22.207607],
+         [ 18.408989,  22.408989,  21.408989]],
+ 
+        [[ 37.69817 ,  38.69817 ,  30.698172],
+         [ 42.096752,  43.096752,  35.096752],
+         [ 93.62746 ,  94.81206 ,  86.258255],
+         ...,
+         [ 19.530594,  23.530594,  22.530594],
+         [ 18.091536,  22.091536,  21.091536],
+         [ 19.202106,  23.202106,  22.202106]],
+ 
+        ...,
+ 
+        [[106.28673 ,  70.28673 ,  96.28673 ],
+         [105.43164 ,  69.43164 ,  95.43164 ],
+         [106.95825 ,  70.95825 ,  96.95825 ],
+         ...,
+         [140.48886 , 111.48886 , 129.48886 ],
+         [135.05005 , 106.05005 , 124.05005 ],
+         [141.57098 , 112.57099 , 130.57098 ]],
+ 
+        [[105.29309 ,  69.29309 ,  95.29309 ],
+         [108.00053 ,  72.00053 ,  98.00053 ],
+         [108.30019 ,  72.30019 ,  98.30019 ],
+         ...,
+         [140.50948 , 111.50948 , 129.50948 ],
+         [137.474   , 108.474   , 126.474   ],
+         [142.99866 , 113.99865 , 131.99866 ]],
+ 
+        [[104.55957 ,  68.55957 ,  94.55957 ],
+         [108.76339 ,  72.76339 ,  98.76339 ],
+         [108.72768 ,  72.72768 ,  98.72768 ],
+         ...,
+         [140.63617 , 111.63617 , 129.63617 ],
+         [138.14514 , 109.14514 , 127.14514 ],
+         [141.46515 , 112.46516 , 130.46515 ]]], dtype=float32))
+
+# Choose a random 10 indexes from the test data and compare the values
+import random
+
+random_indexes = random.sample(range(len(test_ds_images)), 10)
+
+# TK - this is why we don't shuffle the test data
+fig, axes = plt.subplots(2, 5, figsize=(15, 7))
+for i, ax in enumerate(axes.flatten()):
+  target_index = random_indexes[i]
+
+  # Get relevant target image, label, prediction and prediction probabilities
+  test_image = test_ds_images[target_index]
+  test_image_truth_label = class_names[test_ds_labels[target_index]]
+  test_image_pred_probs = test_preds[target_index]
+  test_image_pred_class = class_names[tf.argmax(test_image_pred_probs)]
+
+  # Plot the image
+  ax.imshow(test_image.astype("uint8"))
+
+  # Create sample title
+  title = f"""True: {test_image_truth_label}
+  Pred: {test_image_pred_class}
+  Prob: {np.max(test_image_pred_probs):.2f}"""
+
+  # Colour the title based on correctness of pred
+  ax.set_title(title,
+               color="green" if test_image_truth_label == test_image_pred_class else "red")
+  ax.axis("off")
+
+# Let's create a horizontal bar chart to replicate a similar plot to the original Stanford Dogs page
+plt.figure(figsize=(10, 17))
+plt.barh(y=accuracy_per_class_df["test_truth_class_name"],
+         width=accuracy_per_class_df["correct"])
+plt.xlabel("Accuracy")
+plt.ylabel("Class Name")
+plt.title("Dog Vision Accuracy per Class")
+plt.ylim(-0.5, len(accuracy_per_class_df["test_truth_class_name"]) - 0.5)  # Adjust y-axis limits to reduce white space
+plt.gca().invert_yaxis()  # This will display the first class at the top
+plt.tight_layout()
+plt.show()
+
+# Get most wrong
+top_100_most_wrong = test_results_df[test_results_df["correct"] == 0].sort_values("test_pred_prob", ascending=False)[:100]
+top_100_most_wrong
+test_pred_label	test_pred_prob	test_pred_class_name	test_truth_label	test_truth_class_name	correct
+2727	75	0.993720	miniature_pinscher	38	doberman	0
+6884	54	0.993490	groenendael	95	schipperke	0
+5480	44	0.990781	flat_coated_retriever	78	newfoundland	0
+7630	4	0.988580	american_staffordshire_terrier	104	staffordshire_bullterrier	0
+4155	55	0.986820	ibizan_hound	60	italian_greyhound	0
+...	...	...	...	...	...	...
+2644	63	0.882950	kelpie	37	dingo	0
+7934	73	0.882824	maltese_dog	109	tibetan_terrier	0
+1059	14	0.881923	bloodhound	12	black_and_tan_coonhound	0
+2047	86	0.879732	pembroke	27	cardigan	0
+4601	15	0.878603	bluetick	67	labrador_retriever	0
+
+top_100_most_wrong.sample(n=10).index
+7804
+
+# Choose a random 10 indexes from the test data and compare the values
+import random
+
+random_most_wrong_indexes = top_100_most_wrong.sample(n=10).index
+
+# TK - this is why we don't shuffle the test data
+fig, axes = plt.subplots(2, 5, figsize=(15, 7))
+for i, ax in enumerate(axes.flatten()):
+  target_index = random_most_wrong_indexes[i]
+
+  # Get relevant target image, label, prediction and prediction probabilities
+  test_image = test_ds_images[target_index]
+  test_image_truth_label = class_names[test_ds_labels[target_index]]
+  test_image_pred_probs = test_preds[target_index]
+  test_image_pred_class = class_names[tf.argmax(test_image_pred_probs)]
+
+  # Plot the image
+  ax.imshow(test_image.astype("uint8"))
+
+  # Create sample title
+  title = f"""True: {test_image_truth_label}
+  Pred: {test_image_pred_class}
+  Prob: {np.max(test_image_pred_probs):.2f}"""
+
+  # Colour the title based on correctness of pred
+  ax.set_title(title,
+               color="green" if test_image_truth_label == test_image_pred_class else "red",
+               fontsize=10)
+  ax.axis("off")
+
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+
+fig, ax = plt.subplots(figsize=(25, 25))
+confusion_matrix_dog_preds = confusion_matrix(y_true=test_ds_labels,
+                                              y_pred=test_preds_labels)
+
+confusion_matrix_display = ConfusionMatrixDisplay(confusion_matrix=confusion_matrix_dog_preds,
+                                                  display_labels=class_names)
+
+# Save the model to .keras
+model_1.save("dog_vision_model.keras")
+
+# Load the model
+loaded_model = tf.keras.models.load_model("dog_vision_model.keras")
+
+# Evaluate the loaded model
+loaded_model_results = loaded_model.evaluate(test_ds)
+269/269 [==============================] - 10s 26ms/step - loss: 0.3711 - accuracy: 0.8787
+
+assert model_1_results == loaded_model_results
+
+ax.set_title("Dog Vision Confusion Matrix")
+confusion_matrix_display.plot(xticks_rotation="vertical",
+                              cmap="Blues",
+                              colorbar=False,
+                              ax=ax);
+
+# TK - Make predictions on custom images with the best model
+# TK - load custom image(s)
+!wget -nc https://github.com/mrdbourke/zero-to-mastery-ml/raw/master/images/dog-photos.zip
+!unzip dog-photos.zip
+
+-2023-10-26 03:02:51--  https://github.com/mrdbourke/zero-to-mastery-ml/raw/master/images/dog-photos.zip
+Resolving github.com (github.com)... 140.82.121.4
+Connecting to github.com (github.com)|140.82.121.4|:443... connected.
+HTTP request sent, awaiting response... 302 Found
+Location: https://raw.githubusercontent.com/mrdbourke/zero-to-mastery-ml/master/images/dog-photos.zip [following]
+--2023-10-26 03:02:51--  https://raw.githubusercontent.com/mrdbourke/zero-to-mastery-ml/master/images/dog-photos.zip
+Resolving raw.githubusercontent.com (raw.githubusercontent.com)... 185.199.108.133, 185.199.109.133, 185.199.110.133, ...
+Connecting to raw.githubusercontent.com (raw.githubusercontent.com)|185.199.108.133|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 1091355 (1.0M) [application/zip]
+Saving to: ‘dog-photos.zip’
+
+dog-photos.zip      100%[===================>]   1.04M  --.-KB/s    in 0.02s   
+
+2023-10-26 03:02:52 (51.5 MB/s) - ‘dog-photos.zip’ saved [1091355/1091355]
+
+Archive:  dog-photos.zip
+  inflating: dog-photo-4.jpeg        
+  inflating: dog-photo-1.jpeg        
+  inflating: dog-photo-2.jpeg        
+  inflating: dog-photo-3.jpeg        
+
+# View images
+custom_image_paths = ["dog-photo-1.jpeg",
+                      "dog-photo-2.jpeg",
+                      "dog-photo-3.jpeg",
+                      "dog-photo-4.jpeg"]
+
+fig, axes = plt.subplots(1, 4, figsize=(15, 7))
+for i, ax in enumerate(axes.flatten()):
+  ax.imshow(plt.imread(custom_image_paths[i]))
+  ax.axis("off")
+
+# def plot_10_random_images_from_path_list(path_list: list):
+#     fig, axes = plt.subplots(2, 5, figsize=(20, 10))
+#     samples = random.sample(path_list, 10)
+#     for i, ax in enumerate(axes.flatten()):
+#         sample_path = samples[i]
+#         sample_title = sample_path.parent.stem
+#         ax.imshow(plt.imread(sample_path))
+#         ax.set_title(sample_title)
+#         ax.axis("off")
+
+# Model needs to make predictions on images in same format it was trained on
+
+# Load the image (into PIL format)
+custom_image = tf.keras.utils.load_img(
+  path="dog-photo-1.jpeg",
+  color_mode="rgb",
+  target_size=(img_size, img_size),
+)
+
+custom_image
+
+# Turn the image into a tensor
+
+custom_image_tensor = tf.keras.utils.img_to_array(custom_image)
+custom_image_tensor.shape
+(224, 224, 3)
+loaded_model.predict(custom_image_tensor)
+
+pred_probs = loaded_model.predict(tf.expand_dims(custom_image_tensor, axis=0))
+# pred_probs = tf.keras.activations.softmax(tf.constant(pred_probs)) # if you have no activation="softmax" in your model
+class_names[tf.argmax(pred_probs, axis=-1).numpy()[0]]
+1/1 [==============================] - 2s 2s/step
+'labrador_retriever'
+
+tf.expand_dims(custom_image_tensor, axis=0).shape
+TensorShape([1, 224, 224, 3])
+
+def pred_on_custom_image(image_path,
+                         model,
+                         target_size=224,
+                         class_names=class_names,
+                         plot=True):
+
+  # Prepare and load image
+  custom_image = tf.keras.utils.load_img(
+    path=image_path,
+    color_mode="rgb",
+    target_size=(target_size, target_size),
+  )
+
+  # Turn the image into a tensor
+  custom_image_tensor = tf.keras.utils.img_to_array(custom_image)
+
+  # Add a batch dimension to the target tensor (e.g. (224, 224, 3) -> (1, 224, 224, 3))
+  custom_image_tensor = tf.expand_dims(custom_image_tensor, axis=0)
+
+  # Make a prediction with the target model
+  pred_probs = model.predict(custom_image_tensor)
+  # pred_probs = tf.keras.activations.softmax(tf.constant(pred_probs))
+  pred_class = class_names[tf.argmax(pred_probs, axis=-1).numpy()[0]]
+
+  # Plot if we want
+  if not plot:
+    return pred_class
+  else:
+    plt.figure(figsize=(5, 3))
+    plt.imshow(plt.imread(image_path))
+    plt.title(pred_class)
+    plt.axis("off")
+pred_on_custom_image(image_path="dog-photo-2.jpeg", model=loaded_model)
+
+# Predict on multiple images
+fig, axes = plt.subplots(1, 4, figsize=(15, 7))
+for i, ax in enumerate(axes.flatten()):
+  image_path = custom_image_paths[i]
+  pred_class = pred_on_custom_image(image_path=image_path,
+                                    model=loaded_model,
+                                    plot=False)
+  ax.imshow(plt.imread(image_path))
+  ax.set_title(pred_class)
+  ax.axis("off")
+
+from tensorflow.keras import layers
+
+data_augmentation = tf.keras.Sequential(
+    [
+        layers.RandomFlip("horizontal"),
+        layers.RandomRotation(factor=0.2),
+        layers.RandomZoom(
+            height_factor=0.2, width_factor=0.2
+        ),
+    ],
+    name="data_augmentation"
+)
+
+base_model = tf.keras.applications.efficientnet_v2.EfficientNetV2B0(
+    include_top=False,
+    weights='imagenet',
+    input_shape=(img_size, img_size, 3),
+    include_preprocessing=True
+)
+
+# base_model.summary()
+
+# Freeze the base model
+base_model.trainable = False
+
+# TK - functionize this
+
+# Create new model
+inputs = tf.keras.Input(shape=(224, 224, 3))
+
+# TK - Create data augmentation
+x = data_augmentation(inputs)
+
+# Craft model
+x = base_model(x, training=False)
+x = tf.keras.layers.GlobalAveragePooling2D()(x)
+x = tf.keras.layers.Dropout(0.2)(x)
+outputs = tf.keras.layers.Dense(num_classes,
+                                name="output_layer",
+                                activation="softmax")(x) # Note: If you have "softmax" activation, use from_logits=False in loss function
+model_2 = tf.keras.Model(inputs, outputs, name="model_2")
+model_2.summary()
+
+
+
 
