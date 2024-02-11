@@ -1,1 +1,746 @@
 🐶👁 - Using computer vision to classify dog photos into different breeds.
+
+# Quick timestamp
+import datetime
+print(f"Last updated: {datetime.datetime.now()}")
+
+# TK - TODO: Check compatibility with Keras 3.0 by installing tf-nightly, see: https://x.com/fchollet/status/1719448117064659352?s=20
+import tensorflow as tf
+tf.__version__
+'2.15.0'
+
+# Do we have access to a GPU?
+device_list = tf.config.list_physical_devices()
+if "GPU" in [device.device_type for device in device_list]:
+  print(f"[INFO] TensorFlow has GPU available to use. Woohoo!! Computing will be sped up!")
+  print(f"[INFO] Accessible devices:\n{device_list}")
+else:
+  print(f"[INFO] TensorFlow does not have GPU available to use. Models may take a while to train.")
+  print(f"[INFO] Accessible devices:\n{device_list}")
+[INFO] TensorFlow has GPU available to use. Woohoo!! Computing will be sped up!
+[INFO] Accessible devices:
+[PhysicalDevice(name='/physical_device:CPU:0', device_type='CPU'), PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
+
+# Download the dataset into train and test split using TensorFlow Datasets
+# import tensorflow_datasets as tfds
+# ds_train, ds_test = tfds.load('stanford_dogs', split=['train', 'test'])
+from pathlib import Path
+from google.colab import drive
+
+# 1. Mount Google Drive (this will bring up a pop-up to sign-in/authenticate)
+# Note: This step is specifically for Google Colab, if you're working locally, you may need a different setup
+drive.mount("/content/drive")
+
+# 2. Setup constants
+# Note: For constants like this, you'll often see them created as variables with all capitals
+TARGET_DRIVE_PATH = Path("drive/MyDrive/tensorflow/dog_vision_data")
+TARGET_FILES = ["images.tar", "annotation.tar", "lists.tar"]
+TARGET_URL = "http://vision.stanford.edu/aditya86/ImageNetDogs"
+
+# 3. Setup local path
+local_dir = Path("dog_vision_data")
+
+# 4. Check if the target files exist in Google Drive, if so, copy them to Google Colab
+if all((TARGET_DRIVE_PATH / file).is_file() for file in TARGET_FILES):
+  print(f"[INFO] Copying Dog Vision files from Google Drive to local directory...")
+  print(f"[INFO] Source dir: {TARGET_DRIVE_PATH} -> Target dir: {local_dir}")
+  !cp -r {TARGET_DRIVE_PATH} .
+  print("[INFO] Good to go!")
+
+else:
+  # 5. If the files don't exist in Google Drive, download them
+  print(f"[INFO] Target files not found in Google Drive.")
+  print(f"[INFO] Downloading the target files... this shouldn't take too long...")
+  for file in TARGET_FILES:
+    # wget is short for "world wide web get", as in "get a file from the web"
+    # -nc or --no-clobber = don't download files that already exist locally
+    # -P = save the target file to a specified prefix, in our case, local_dir
+    !wget -nc {TARGET_URL}/{file} -P {local_dir} # the "!" means to execute the command on the command line rather than in Python
+
+  print(f"[INFO] Saving the target files to Google Drive, so they can be loaded later...")
+
+  # 6. Ensure target directory in Google Drive exists
+  TARGET_DRIVE_PATH.mkdir(parents=True, exist_ok=True)
+
+  # 7. Copy downloaded files to Google Drive (so we can use them later and not have to re-download them)
+  !cp -r {local_dir}/* {TARGET_DRIVE_PATH}/
+Mounted at /content/drive
+[INFO] Copying Dog Vision files from Google Drive to local directory...
+[INFO] Source dir: drive/MyDrive/tensorflow/dog_vision_data -> Target dir: dog_vision_data
+[INFO] Good to go!
+
+if local_dir.exists():
+  print(str(local_dir) + "/")
+  for item in local_dir.iterdir():
+    print("  ", item.name)
+dog_vision_data/
+   images.tar
+   annotation.tar
+   lists.tar
+
+# Untar images
+# -x = extract files from the zipped file
+# -v = verbose
+# -z = decompress files
+# -f = tell tar which file to deal with
+!tar -xf dog_vision_data/images.tar
+!tar -xf dog_vision_data/annotation.tar
+!tar -xf dog_vision_data/lists.tar
+
+import os
+
+os.listdir(".") # "." stands for "here" or "current directory"
+['.config',
+ 'file_list.mat',
+ 'test_list.mat',
+ 'Images',
+ 'dog_vision_data',
+ 'drive',
+ 'train_list.mat',
+ 'Annotation',
+ 'sample_data']
+
+import scipy
+
+# Open lists of train and test .mat
+train_list = scipy.io.loadmat("train_list.mat")
+test_list = scipy.io.loadmat("test_list.mat")
+file_list = scipy.io.loadmat("file_list.mat")
+
+# Let's inspect the output and type of the train_list
+train_list, type(train_list)
+({'__header__': b'MATLAB 5.0 MAT-file, Platform: GLNXA64, Created on: Sun Oct  9 08:36:13 2011',
+  '__version__': '1.0',
+  '__globals__': [],
+  'file_list': array([[array(['n02085620-Chihuahua/n02085620_5927.jpg'], dtype='<U38')],
+         [array(['n02085620-Chihuahua/n02085620_4441.jpg'], dtype='<U38')],
+         [array(['n02085620-Chihuahua/n02085620_1502.jpg'], dtype='<U38')],
+         ...,
+         [array(['n02116738-African_hunting_dog/n02116738_6754.jpg'], dtype='<U48')],
+         [array(['n02116738-African_hunting_dog/n02116738_9333.jpg'], dtype='<U48')],
+         [array(['n02116738-African_hunting_dog/n02116738_2503.jpg'], dtype='<U48')]],
+        dtype=object),
+  'annotation_list': array([[array(['n02085620-Chihuahua/n02085620_5927'], dtype='<U34')],
+         [array(['n02085620-Chihuahua/n02085620_4441'], dtype='<U34')],
+         [array(['n02085620-Chihuahua/n02085620_1502'], dtype='<U34')],
+         ...,
+         [array(['n02116738-African_hunting_dog/n02116738_6754'], dtype='<U44')],
+         [array(['n02116738-African_hunting_dog/n02116738_9333'], dtype='<U44')],
+         [array(['n02116738-African_hunting_dog/n02116738_2503'], dtype='<U44')]],
+        dtype=object),
+  'labels': array([[  1],
+         [  1],
+         [  1],
+         ...,
+         [120],
+         [120],
+         [120]], dtype=uint8)},
+ dict)
+
+train_list.keys()
+dict_keys(['__header__', '__version__', '__globals__', 'file_list', 'annotation_list', 'labels'])
+
+# Check the length of the file_list key
+print(f"Number of files in training list: {len(train_list['file_list'])}")
+print(f"Number of files in testing list: {len(test_list['file_list'])}")
+print(f"Number of files in full list: {len(file_list['file_list'])}")
+Number of files in training list: 12000
+Number of files in testing list: 8580
+Number of files in full list: 20580
+
+train_list['file_list']
+array([[array(['n02085620-Chihuahua/n02085620_5927.jpg'], dtype='<U38')],
+       [array(['n02085620-Chihuahua/n02085620_4441.jpg'], dtype='<U38')],
+       [array(['n02085620-Chihuahua/n02085620_1502.jpg'], dtype='<U38')],
+       ...,
+       [array(['n02116738-African_hunting_dog/n02116738_6754.jpg'], dtype='<U48')],
+       [array(['n02116738-African_hunting_dog/n02116738_9333.jpg'], dtype='<U48')],
+       [array(['n02116738-African_hunting_dog/n02116738_2503.jpg'], dtype='<U48')]],
+      dtype=object)
+
+# Get a single filename
+train_list['file_list'][0][0][0]
+'n02085620-Chihuahua/n02085620_5927.jpg'
+
+# Get a Python list of all file names for each list
+train_file_list = list([item[0][0] for item in train_list["file_list"]])
+test_file_list = list([item[0][0] for item in test_list["file_list"]])
+full_file_list = list([item[0][0] for item in file_list["file_list"]])
+
+len(train_file_list), len(test_file_list), len(full_file_list)
+(12000, 8580, 20580)
+
+import random
+
+random.sample(train_file_list, k=10)
+['n02102480-Sussex_spaniel/n02102480_4380.jpg',
+ 'n02106662-German_shepherd/n02106662_19641.jpg',
+ 'n02107908-Appenzeller/n02107908_2151.jpg',
+ 'n02087046-toy_terrier/n02087046_2158.jpg',
+ 'n02105056-groenendael/n02105056_537.jpg',
+ 'n02088632-bluetick/n02088632_916.jpg',
+ 'n02108000-EntleBucher/n02108000_2357.jpg',
+ 'n02098286-West_Highland_white_terrier/n02098286_763.jpg',
+ 'n02102177-Welsh_springer_spaniel/n02102177_1257.jpg',
+ 'n02105505-komondor/n02105505_2083.jpg']
+
+# How many files in the training set intersect with the testing set?
+len(set(train_file_list).intersection(test_file_list))
+0
+
+# Make an assertion statement to check there are no overlaps 
+assert len(set(train_file_list).intersection(test_file_list)) == 0, "There are overlaps between the training and test set fil
+
+os.listdir("Annotation")[:10]
+['n02090622-borzoi',
+ 'n02106662-German_shepherd',
+ 'n02097298-Scotch_terrier',
+ 'n02093647-Bedlington_terrier',
+ 'n02108915-French_bulldog',
+ 'n02097474-Tibetan_terrier',
+ 'n02110958-pug',
+ 'n02101388-Brittany_spaniel',
+ 'n02110806-basenji',
+ 'n02101006-Gordon_setter']
+
+from pathlib import Path
+
+def count_subfolders(directory_path: str) -> int:
+    """
+    Count the number of subfolders in a given directory.
+
+    Args:
+    directory_path (str): The path to the directory in which to count subfolders.
+
+    Returns:
+    int: The number of subfolders in the specified directory.
+
+    Examples:
+    >>> count_subfolders('/path/to/directory')
+    3  # if there are 3 subfolders in the specified directory
+    """
+    return len([name for name in Path(directory_path).iterdir() if name.is_dir()])
+
+
+directory_path = "Annotation"
+folder_count = count_subfolders(directory_path)
+print(f"Number of subfolders in {directory_path} directory: {folder_count}")
+Number of subfolders in Annotation directory: 120
+
+# View a single training file pathname
+train_file_list[0]
+'n02085620-Chihuahua/n02085620_5927.jpg'
+
+from IPython.display import Image
+Image(Path("Images", train_file_list[0]))
+
+
+# Get a list of all image folders
+image_folders = os.listdir("Images")
+image_folders[:10]
+['n02090622-borzoi',
+ 'n02106662-German_shepherd',
+ 'n02097298-Scotch_terrier',
+ 'n02093647-Bedlington_terrier',
+ 'n02108915-French_bulldog',
+ 'n02097474-Tibetan_terrier',
+ 'n02110958-pug',
+ 'n02101388-Brittany_spaniel',
+ 'n02110806-basenji',
+ 'n02101006-Gordon_setter']
+
+# Create folder name -> class name dict
+folder_to_class_name_dict = {}
+for folder_name in image_folders:
+  # Turn folder name into class_name
+  # E.g. "n02089078-black-and-tan_coonhound" -> "black_and_tan_coonhound"
+  # We'll split on the first "-" and join the rest of the string with "_" and then lower it
+  class_name = "_".join(folder_name.split("-")[1:]).lower()
+  folder_to_class_name_dict[folder_name] = class_name
+
+# Make sure there are 120 entries in the dictionary
+assert len(folder_to_class_name_dict) == 120
+
+sorted(folder_to_class_name_dict.items())[:10]
+[('n02085620-Chihuahua', 'chihuahua'),
+ ('n02085782-Japanese_spaniel', 'japanese_spaniel'),
+ ('n02085936-Maltese_dog', 'maltese_dog'),
+ ('n02086079-Pekinese', 'pekinese'),
+ ('n02086240-Shih-Tzu', 'shih_tzu'),
+ ('n02086646-Blenheim_spaniel', 'blenheim_spaniel'),
+ ('n02086910-papillon', 'papillon'),
+ ('n02087046-toy_terrier', 'toy_terrier'),
+ ('n02087394-Rhodesian_ridgeback', 'rhodesian_ridgeback'),
+ ('n02088094-Afghan_hound', 'afghan_hound')]
+
+dog_names = sorted(list(folder_to_class_name_dict.values()))
+dog_names[:10]
+['affenpinscher',
+ 'afghan_hound',
+ 'african_hunting_dog',
+ 'airedale',
+ 'american_staffordshire_terrier',
+ 'appenzeller',
+ 'australian_terrier',
+ 'basenji',
+ 'basset',
+ 'beagle']
+
+from typing import List
+from pathlib import Path
+import matplotlib.pyplot as plt
+import random
+
+# 1. Take in a select list of image paths
+def plot_10_random_images_from_path_list(path_list: List[Path],
+                                         extract_title=True) -> None:
+  # 2. Set up a grid of plots
+  fig, axes = plt.subplots(nrows=2, ncols=5, figsize=(20, 10))
+
+  # 3. Randomly sample 10 paths from the list
+  samples = random.sample(path_list, 10)
+
+  # 4. Iterate through the flattened axes and corresponding sample paths
+  for i, ax in enumerate(axes.flat):
+
+    # 5. Get the target sample path (e.g. "Images/n02087394-Rhodesian_ridgeback/n02087394_1161.jpg")
+    sample_path = samples[i]
+
+    # 6. Extract the parent directory name to use as the title (if necessary)
+    # (e.g. n02087394-Rhodesian_ridgeback/n02087394_1161.jpg -> n02087394-Rhodesian_ridgeback -> rhodesian_ridgeback)
+    if extract_title:
+      sample_title = folder_to_class_name_dict[sample_path.parent.stem]
+    else:
+      sample_title = sample_path.parent.stem
+
+    # 7. Read the image file and plot it on the corresponding axis
+    ax.imshow(plt.imread(sample_path))
+
+    # 8. Set the title of the axis and turn of the axis (for pretty plots)
+    ax.set_title(sample_title)
+    ax.axis("off")
+
+  # 9. Display the plot
+  plt.show()
+
+plot_10_random_images_from_path_list(path_list=[Path("Images") / Path(file) for file in train_file_list])
+
+
+# Create a dictionary of image counts
+from pathlib import Path
+from typing import List, Dict
+
+# 1. Take in a target directory
+def count_images_in_subdirs(target_directory: str) -> List[Dict[str, int]]:
+    """
+    Counts the number of JPEG images in each subdirectory of the given directory.
+
+    Each subdirectory is assumed to represent a class, and the function counts
+    the number of '.jpg' files within each one. The result is a list of
+    dictionaries with the class name and corresponding image count.
+
+    Args:
+        target_directory (str): The path to the directory containing subdirectories.
+
+    Returns:
+        List[Dict[str, int]]: A list of dictionaries with 'class_name' and 'image_count' for each subdirectory.
+
+    Examples:
+        >>> count_images_in_subdirs('/path/to/directory')
+        [{'class_name': 'beagle', 'image_count': 50}, {'class_name': 'poodle', 'image_count': 60}]
+    """
+    # 2. Create a list of all the subdirectoires in the target directory (these contain our images)
+    images_dir = Path(target_directory)
+    image_class_dirs = [directory for directory in images_dir.iterdir() if directory.is_dir()]
+
+    # 3. Create an empty list to append image counts to
+    image_class_counts = []
+
+    # 4. Iterate through all of the subdirectories
+    for image_class_dir in image_class_dirs:
+
+        # 5. Get the class name from image directory (e.g. "Images/n02116738-African_hunting_dog" -> "n02116738-African_hunting_dog")
+        class_name = image_class_dir.stem
+
+        # 6. Count the number of images in the target subdirectory
+        image_count = len(list(image_class_dir.rglob("*.jpg")))  # get length all files with .jpg file extension
+
+        # 7. Append a dictionary of class name and image count to count list
+        image_class_counts.append({"class_name": class_name,
+                                   "image_count": image_count})
+
+    # 8. Return the list
+    return image_class_counts
+
+image_class_counts = count_images_in_subdirs("Images")
+image_class_counts[:3]
+[{'class_name': 'n02090622-borzoi', 'image_count': 151},
+ {'class_name': 'n02106662-German_shepherd', 'image_count': 152},
+ {'class_name': 'n02097298-Scotch_terrier', 'image_count': 158}]
+
+# Create a DataFrame
+import pandas as pd
+image_counts_df = pd.DataFrame(image_class_counts).sort_values(by="image_count", ascending=False)
+image_counts_df.head()
+class_name	image_count
+74	n02085936-Maltese_dog	252
+77	n02088094-Afghan_hound	239
+69	n02092002-Scottish_deerhound	232
+28	n02112018-Pomeranian	219
+75	n02107683-Bernese_mountain_dog	218
+
+# Make class name column easier to read
+image_counts_df["class_name"] = image_counts_df["class_name"].map(folder_to_class_name_dict)
+image_counts_df.head()
+class_name	image_count
+74	maltese_dog	252
+77	afghan_hound	239
+69	scottish_deerhound	232
+28	pomeranian	219
+75	bernese_mountain_dog	218
+
+# Turn the image counts DataFrame into a graph
+import matplotlib.pyplot as plt
+plt.figure(figsize=(14, 7))
+image_counts_df.plot(kind="bar",
+                     x="class_name",
+                     y="image_count",
+                     legend=False,
+                     ax=plt.gca()) # plt.gca() = "get current axis", get the plt we setup above and put the data there
+
+# Add customization
+plt.ylabel("Image Count")
+plt.title("Total Image Counts by Class")
+plt.xticks(rotation=90, # Rotate the x labels for better visibility
+           fontsize=8) # Make the font size smaller for easier reading
+plt.tight_layout() # Ensure things fit nicely
+plt.show()
+
+
+# Get various statistics about our data distribution
+image_counts_df.describe()
+image_count
+count	120.000000
+mean	171.500000
+std	23.220898
+min	148.000000
+25%	152.750000
+50%	159.500000
+75%	186.250000
+max	252.000000
+
+from pathlib import Path
+
+# Define the target directory for image splits to go
+images_split_dir = Path("images_split")
+
+# Define the training and test directories
+train_dir = images_split_dir / "train"
+test_dir = images_split_dir / "test"
+
+# Using Path.mkdir with exist_ok=True ensures the directory is created only if it doesn't exist
+train_dir.mkdir(parents=True, exist_ok=True)
+test_dir.mkdir(parents=True, exist_ok=True)
+print(f"Directory {train_dir} is ensured to exist.")
+print(f"Directory {test_dir} is ensured to exist.")
+
+# Make a folder for each dog name
+for dog_name in dog_names:
+  # Make training dir folder
+  train_class_dir = train_dir / dog_name
+  train_class_dir.mkdir(parents=True, exist_ok=True)
+  # print(f"Making directory: {train_class_dir}")
+
+  # Make testing dir folder
+  test_class_dir = test_dir / dog_name
+  test_class_dir.mkdir(parents=True, exist_ok=True)
+  # print(f"Making directory: {test_class_dir}")
+
+# Make sure there is 120 subfolders in each
+assert count_subfolders(train_dir) == len(dog_names)
+assert count_subfolders(test_dir) == len(dog_names)
+Directory images_split/train is ensured to exist.
+Directory images_split/test is ensured to exist.
+
+# See the first 10 directories in the training split dir
+sorted([str(dir_name) for dir_name in train_dir.iterdir() if dir_name.is_dir()])[:10]
+['images_split/train/affenpinscher',
+ 'images_split/train/afghan_hound',
+ 'images_split/train/african_hunting_dog',
+ 'images_split/train/airedale',
+ 'images_split/train/american_staffordshire_terrier',
+ 'images_split/train/appenzeller',
+ 'images_split/train/australian_terrier',
+ 'images_split/train/basenji',
+ 'images_split/train/basset',
+ 'images_split/train/beagle']
+
+from pathlib import Path
+from shutil import copy2
+from tqdm.auto import tqdm
+
+# 1. Take in a list of source files to copy and a target directory
+def copy_files_to_target_dir(file_list: list[str],
+                             target_dir: str,
+                             images_dir: str = "Images",
+                             verbose: bool = False) -> None:
+    """
+    Copies a list of files from the images directory to a target directory.
+
+    Parameters:
+    file_list (list[str]): A list of file paths to copy.
+    target_dir (str): The destination directory path where files will be copied.
+    images_dir (str, optional): The directory path where the images are currently stored. Defaults to 'Images'.
+    verbose (bool, optional): If set to True, the function will print out the file paths as they are being copied. Defaults to False.
+
+    Returns:
+    None
+    """
+    # 2. Iterate through source files
+    for file in tqdm(file_list):
+
+      # 3. Convert file path to a Path object
+      source_file_path = Path(images_dir) / Path(file)
+
+      # 4. Split the file path and create a Path object for the destination folder
+      # e.g. "n02112018-Pomeranian" -> "pomeranian"
+      file_class_name = folder_to_class_name_dict[Path(file).parts[0]]
+
+      # 5. Get the name of the target image
+      file_image_name = Path(file).name
+
+      # 6. Create the destination path
+      destination_file_path = Path(target_dir) / file_class_name / file_image_name
+
+      # 7. Ensure the destination directory exists (this is a safety check, can't copy an image to a file that doesn't exist)
+      destination_file_path.parent.mkdir(parents=True, exist_ok=True)
+
+      # 8. Print out copy message if necessary
+      if verbose:
+        print(f"[INFO] Copying: {source_file_path} to {destination_file_path}")
+
+      # 9. Copy the original path to the destination path
+      copy2(src=source_file_path, dst=destination_file_path)
+
+# Copy training images from Images to images_split/train/...
+copy_files_to_target_dir(file_list=train_file_list,
+                         target_dir=train_dir,
+                         verbose=False) # set this to True to get an output of the copy process
+                                        # (warning: this will output a large amount of text)
+  0%|          | 0/12000 [00:00<?, ?it/s]
+
+copy_files_to_target_dir(file_list=test_file_list,
+                         target_dir=test_dir,
+                         verbose=False)
+  0%|          | 0/8580 [00:00<?, ?it/s]
+
+# Get list of of all .jpg paths in train and test image directories
+train_image_paths = list(train_dir.rglob("*.jpg"))
+test_image_paths = list(test_dir.rglob("*.jpg"))
+
+# Make sure the number of images in the training and test directories equals the number of files in their original lists
+assert len(train_image_paths) == len(train_file_list)
+assert len(test_image_paths) == len(test_file_list)
+
+print(f"Number of images in {train_dir}: {len(train_image_paths)}")
+print(f"Number of images in {test_dir}: {len(test_image_paths)}")
+Number of images in images_split/train: 12000
+Number of images in images_split/test: 8580
+
+# Plot 10 random images from the train_image_paths
+plot_10_random_images_from_path_list(path_list=train_image_paths,
+                                     extract_title=False) # don't need to extract the title since the image directories are already named simply
+
+
+# Create train_10_percent directory
+train_10_percent_dir = images_split_dir / "train_10_percent"
+train_10_percent_dir.mkdir(parents=True, exist_ok=True)
+
+os.listdir(images_split_dir)
+['train', 'train_10_percent', 'test']
+
+import random
+
+# Set a random seed
+random.seed(42)
+
+# Get a 10% sample of the training image paths
+train_image_paths_random_10_percent = random.sample(population=train_image_paths,
+                                                    k=int(0.1*len(train_image_paths)))
+
+# Check how many image paths we got
+print(f"Original number of training image paths: {len(train_image_paths)}")
+print(f"Number of 10% training image paths: {len(train_image_paths_random_10_percent)}")
+print("First 5 random 10% training image paths:")
+train_image_paths_random_10_percent[:5]
+Original number of training image paths: 12000
+Number of 10% training image paths: 1200
+First 5 random 10% training image paths:
+[PosixPath('images_split/train/silky_terrier/n02097658_6289.jpg'),
+ PosixPath('images_split/train/border_terrier/n02093754_5038.jpg'),
+ PosixPath('images_split/train/miniature_pinscher/n02107312_4613.jpg'),
+ PosixPath('images_split/train/afghan_hound/n02088094_4219.jpg'),
+ PosixPath('images_split/train/irish_setter/n02100877_2298.jpg')]
+
+# Copy training 10% split images from images_split/train/ to images_split/train_10_percent/...
+for source_file_path in tqdm(train_image_paths_random_10_percent):
+
+  # Create the destination file path
+  destination_file_and_image_name = Path(*source_file_path.parts[-2:]) # "images_split/train/yorkshire_terrier/n02094433_2223.jpg" -> "yorkshire_terrier/n02094433_2223.jpg"
+  destination_file_path = train_10_percent_dir / destination_file_and_image_name # "yorkshire_terrier/n02094433_2223.jpg" -> "images_split/train_10_percent/yorkshire_terrier/n02094433_2223.jpg"
+
+  # If the target directory doesn't exist, make it
+  target_class_dir = destination_file_path.parent
+  if not target_class_dir.is_dir():
+    # print(f"Making directory: {target_class_dir}")
+    target_class_dir.mkdir(parents=True,
+                           exist_ok=True)
+
+  # print(f"Copying: {source_file_path} to {destination_file_path}")
+  copy2(src=source_file_path,
+        dst=destination_file_path)
+  0%|          | 0/1200 [00:00<?, ?it/s]
+
+# Count images in train_10_percent_dir
+train_10_percent_image_class_counts = count_images_in_subdirs(train_10_percent_dir)
+train_10_percent_image_class_counts_df = pd.DataFrame(train_10_percent_image_class_counts).sort_values("image_count", ascending=True)
+train_10_percent_image_class_counts_df.head()
+class_name	image_count
+33	collie	3
+23	italian_greyhound	4
+61	dingo	4
+64	american_staffordshire_terrier	4
+100	great_dane	5
+
+# How many subfolders are there?
+print(len(train_10_percent_image_class_counts_df))
+120
+
+# Plot distribution of train 10% dataset.
+plt.figure(figsize=(14, 7))
+train_10_percent_image_class_counts_df.plot(kind="bar",
+                     x="class_name",
+                     y="image_count",
+                     legend=False,
+                     ax=plt.gca()) # plt.gca() = "get current axis", get the plt we setup above and put the data there
+
+# Add customization
+plt.title("Train 10 Percent Image Counts by Class")
+plt.ylabel("Image Count")
+plt.xticks(rotation=90, # Rotate the x labels for better visibility
+           fontsize=8) # Make the font size smaller for easier reading
+plt.tight_layout() # Ensure things fit nicely
+plt.show()
+
+
+import tensorflow as tf
+
+# Create constants
+IMG_SIZE = (224, 224)
+BATCH_SIZE = 32
+SEED = 42
+
+# Create train 10% dataset
+train_10_percent_ds = tf.keras.utils.image_dataset_from_directory(
+    directory=train_10_percent_dir,
+    label_mode="categorical", # turns labels into one-hot representations (e.g. [0, 0, 1, ..., 0, 0])
+    batch_size=BATCH_SIZE,
+    image_size=IMG_SIZE,
+    shuffle=True, # shuffle training datasets to prevent learning of order
+    seed=SEED
+)
+
+# Create full train dataset
+train_ds = tf.keras.utils.image_dataset_from_directory(
+    directory=train_dir,
+    label_mode="categorical",
+    batch_size=BATCH_SIZE,
+    image_size=IMG_SIZE,
+    shuffle=True,
+    seed=SEED
+)
+
+# Create test dataset
+test_ds = tf.keras.utils.image_dataset_from_directory(
+    directory=test_dir,
+    label_mode="categorical",
+    batch_size=BATCH_SIZE,
+    image_size=IMG_SIZE,
+    shuffle=False, # don't need to shuffle the test dataset (this makes evaluations easier)
+    seed=SEED
+)
+Found 1200 files belonging to 120 classes.
+Found 12000 files belonging to 120 classes.
+Found 8580 files belonging to 120 classes.
+
+train_10_percent_ds
+<_PrefetchDataset element_spec=(TensorSpec(shape=(None, 224, 224, 3), dtype=tf.float32, name=None), TensorSpec(shape=(None, 120), dtype=tf.float32, name=None))>
+
+# What does a single batch look like?
+image_batch, label_batch = next(iter(train_ds))
+image_batch.shape, label_batch.shape
+(TensorShape([32, 224, 224, 3]), TensorShape([32, 120]))
+
+# Get a single sample from a single batch
+print(f"Single image tensor:\n{image_batch[0]}\n")
+print(f"Single label tensor: {label_batch[0]}") # notice the 1 is the index of the target label (our labels are one-hot encoded)
+print(f"Single sample class name: {dog_names[tf.argmax(label_batch[0])]}")
+Single image tensor:
+[[[196.61607  174.61607  160.61607 ]
+  [197.84822  175.84822  161.84822 ]
+  [200.       178.       164.      ]
+  ...
+  [ 60.095097  79.75804   45.769207]
+  [ 61.83293   71.22575   63.288315]
+  [ 77.65755   83.65755   81.65755 ]]
+
+ [[196.       174.       160.      ]
+  [197.83876  175.83876  161.83876 ]
+  [199.07945  177.07945  163.07945 ]
+  ...
+  [ 94.573715 110.55229   83.59694 ]
+  [125.869865 135.26268  127.33472 ]
+  [122.579605 128.5796   126.579605]]
+
+ [[195.73691  173.73691  159.73691 ]
+  [196.896    174.896    160.896   ]
+  [199.       177.       163.      ]
+  ...
+  [ 26.679413  38.759026  20.500835]
+  [ 24.372307  31.440136  26.675896]
+  [ 20.214453  26.214453  24.214453]]
+
+ ...
+
+ [[ 61.57369   70.18976  104.72547 ]
+  [189.91965  199.61607  213.28572 ]
+  [247.26637  255.       252.70387 ]
+  ...
+  [113.40158   83.40158   57.40158 ]
+  [110.75214   78.75214   53.752136]
+  [107.37048   75.37048   50.370483]]
+
+ [[ 61.27007   69.88614  104.42185 ]
+  [188.93079  198.62721  212.29686 ]
+  [246.33257  255.       251.77007 ]
+  ...
+  [110.88623   80.88623   54.88623 ]
+  [102.763245  70.763245  45.763245]
+  [ 99.457634  67.457634  42.457638]]
+
+ [[ 60.25893   68.875    103.41071 ]
+  [188.58261  198.27904  211.94868 ]
+  [245.93112  254.6097   251.36862 ]
+  ...
+  [105.02222   75.02222   49.022217]
+  [109.11186   77.11186   52.111866]
+  [106.56936   74.56936   49.56936 ]]]
+
+Single label tensor: [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+ 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+ 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+ 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 1.
+ 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
+Single sample class name: schipperke
+
+
